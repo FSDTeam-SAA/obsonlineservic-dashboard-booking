@@ -63,8 +63,15 @@ export interface QueryHolidayParkDto {
 }
 
 export interface PaginatedHolidayParksResponse {
-  message: string;
-  data: {
+  items: HolidayPark[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+  message?: string;
+  data?: {
     items: HolidayPark[];
     meta: {
       total: number;
@@ -73,5 +80,4 @@ export interface PaginatedHolidayParksResponse {
       totalPages: number;
     };
   };
-  items?: HolidayPark[];
 }

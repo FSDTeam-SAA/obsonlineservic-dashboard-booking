@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import { DashboardShell } from "@/components/shared/DashboardShell";
+import { ImageUploadBox } from "@/components/shared/ImageUploadBox";
 import {
   fetchHolidayParks,
   createHolidayPark,
@@ -72,10 +73,12 @@ export function HolidayParksPage() {
         status: statusFilter === "All" ? undefined : statusFilter,
       });
 
-      if (response && response.data) {
-        setParks(response.data.items || []);
-        setTotalPages(response.data.meta?.totalPages || 1);
-        setTotalCount(response.data.meta?.total || 0);
+      if (response) {
+        const items = response.items || (response as any).data?.items || [];
+        const meta = response.meta || (response as any).data?.meta;
+        setParks(items);
+        setTotalPages(meta?.totalPages || 1);
+        setTotalCount(meta?.total || items.length);
       }
     } catch (err: any) {
       console.error("Failed to load holiday parks:", err);
@@ -416,15 +419,13 @@ export function HolidayParksPage() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-slate-600 font-medium mb-1">Cover Image URL</label>
-                <input
-                  value={formData.coverImage}
-                  onChange={(e) => setFormData({ ...formData, coverImage: e.target.value })}
-                  className="w-full h-9 px-3 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-[#3b338c] outline-none"
-                  placeholder="https://images.unsplash.com/..."
-                />
-              </div>
+              <ImageUploadBox
+                label="Cover Image"
+                hint="Upload image file or paste URL (recommended 600×400)"
+                value={formData.coverImage || ""}
+                onChange={(url) => setFormData({ ...formData, coverImage: url })}
+                disabled={isSaving}
+              />
 
               <div>
                 <label className="block text-slate-600 font-medium mb-1">Short Description</label>

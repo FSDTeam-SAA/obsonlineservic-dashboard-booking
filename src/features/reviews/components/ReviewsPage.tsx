@@ -44,10 +44,12 @@ export function ReviewsPage() {
         search: search.trim() || undefined,
       });
 
-      if (response && response.data) {
-        setReviews(response.data.items || []);
-        setTotalPages(response.data.meta?.totalPages || 1);
-        setTotalCount(response.data.meta?.total || 0);
+      if (response) {
+        const items = response.items || (response as any).data?.items || [];
+        const meta = response.meta || (response as any).data?.meta;
+        setReviews(items);
+        setTotalPages(meta?.totalPages || 1);
+        setTotalCount(meta?.total || items.length);
       }
     } catch (err: any) {
       console.error("Failed to load reviews:", err);

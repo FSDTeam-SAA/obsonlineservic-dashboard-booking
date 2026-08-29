@@ -5,6 +5,7 @@
  */
 
 import { api } from '@/lib/api';
+import { unwrapData } from '@/lib/api-unwrap';
 import {
   UploadImageResponse,
   UploadMultipleImagesResponse,
@@ -57,7 +58,8 @@ export async function uploadSingleImage(file: File): Promise<string> {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 
-  return response.data.data.url;
+  const unwrapped = unwrapData<{ url: string }>(response.data);
+  return unwrapped?.url || response.data?.data?.url || '';
 }
 
 /**
@@ -83,7 +85,8 @@ export async function uploadMultipleImages(files: File[]): Promise<string[]> {
     { headers: { 'Content-Type': 'multipart/form-data' } }
   );
 
-  return response.data.data.urls;
+  const unwrapped = unwrapData<{ urls: string[] }>(response.data);
+  return unwrapped?.urls || response.data?.data?.urls || [];
 }
 
 /**
@@ -100,5 +103,6 @@ export async function uploadDocument(file: File): Promise<string> {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 
-  return response.data.data.url;
+  const unwrapped = unwrapData<{ url: string }>(response.data);
+  return unwrapped?.url || response.data?.data?.url || '';
 }

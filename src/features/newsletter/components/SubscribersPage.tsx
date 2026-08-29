@@ -75,9 +75,7 @@ export function SubscribersPage() {
       setLoading(true);
       setError(null);
       const res = await getNewsletterSubscribers();
-      if (res.data) {
-        setSubscribers(res.data || []);
-      }
+      setSubscribers(Array.isArray(res) ? res : (res as any)?.data || []);
     } catch (err: any) {
       console.error("Failed to fetch subscribers:", err);
       setError(err?.response?.data?.message || t.errorFetch);

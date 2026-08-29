@@ -1,4 +1,5 @@
 import { api } from "@/lib/api";
+import { unwrapData } from "@/lib/api-unwrap";
 import { DashboardOverviewData } from "../types/dashboard.types";
 
 /**
@@ -6,7 +7,7 @@ import { DashboardOverviewData } from "../types/dashboard.types";
  */
 export async function fetchDashboardOverview(): Promise<DashboardOverviewData> {
   const response = await api.get("/dashboard/overview");
-  return response.data?.data || response.data;
+  return unwrapData<DashboardOverviewData>(response.data);
 }
 
 /**
@@ -14,5 +15,5 @@ export async function fetchDashboardOverview(): Promise<DashboardOverviewData> {
  */
 export async function fetchAdminStats(): Promise<DashboardOverviewData> {
   const response = await api.get("/dashboard/admin-stats");
-  return response.data?.data || response.data;
+  return unwrapData<DashboardOverviewData>(response.data);
 }

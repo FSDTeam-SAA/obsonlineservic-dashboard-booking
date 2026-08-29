@@ -26,8 +26,15 @@ export interface QueryReviewDto {
 }
 
 export interface PaginatedReviewsResponse {
-  message: string;
-  data: {
+  items: Review[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+  message?: string;
+  data?: {
     items: Review[];
     meta: {
       total: number;

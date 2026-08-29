@@ -6,9 +6,12 @@ import { useEffect } from "react";
 const routes: Record<string, string> = {
   Dashboard: "/dashboard",
   Properties: "/dashboard/properties",
+  "Holiday Parks": "/dashboard/holiday-parks",
   Bookings: "/dashboard/bookings",
   Offers: "/dashboard/offers",
   "Create Offer": "/dashboard/offers/create",
+  Reviews: "/dashboard/reviews",
+  Users: "/dashboard/users",
   Settings: "/dashboard/settings",
   "Add Holiday Park": "/dashboard/properties/add",
   Newsletter: "/dashboard/newsletter",

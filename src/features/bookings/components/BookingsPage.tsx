@@ -18,6 +18,7 @@ import {
   RefreshCw,
   CheckCircle2,
   XCircle,
+  Download,
 } from "lucide-react";
 import {
   fetchAdminBookings,
@@ -147,6 +148,35 @@ export function BookingsPage() {
     }
   };
 
+  const handleExportCSV = () => {
+    if (bookings.length === 0) return;
+
+    const headers = ["Booking Code", "Guest Name", "Guest Email", "Property", "Check In", "Check Out", "Amount", "Status", "Payment"];
+    const rows = bookings.map((b) => [
+      `"${b.bookingId}"`,
+      `"${b.guest}"`,
+      `"${b.email}"`,
+      `"${typeof b.property === "object" && b.property !== null ? b.property.title : "Property"}"`,
+      `"${b.checkInDate ? new Date(b.checkInDate).toLocaleDateString() : ""}"`,
+      `"${b.checkOutDate ? new Date(b.checkOutDate).toLocaleDateString() : ""}"`,
+      `"€${b.totalAmount}"`,
+      `"${b.status}"`,
+      `"${b.paymentStatus || "Pending"}"`,
+    ]);
+
+    const csvContent =
+      "data:text/csv;charset=utf-8," +
+      [headers.join(","), ...rows.map((e: string[]) => e.join(","))].join("\n");
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `OBS_Bookings_Report_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <DashboardShell
       active="Bookings"
@@ -273,12 +303,21 @@ export function BookingsPage() {
               </div>
             </div>
 
-            <button
-              onClick={loadData}
-              className="h-11 px-4 border border-slate-200 bg-white text-slate-700 font-semibold rounded-lg flex items-center justify-center gap-1.5 hover:bg-slate-50 transition-colors text-sm"
-            >
-              <RefreshCw size={15} /> Refresh
-            </button>
+            <div className="flex items-center gap-2 self-end md:self-auto">
+              <button
+                onClick={handleExportCSV}
+                className="h-11 px-4 border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-colors text-sm cursor-pointer"
+                title="Export Bookings to CSV"
+              >
+                <Download size={15} /> Export CSV
+              </button>
+              <button
+                onClick={loadData}
+                className="h-11 px-4 border border-slate-200 bg-white text-slate-700 font-semibold rounded-lg flex items-center justify-center gap-1.5 hover:bg-slate-50 transition-colors text-sm cursor-pointer"
+              >
+                <RefreshCw size={15} /> Refresh
+              </button>
+            </div>
           </section>
 
           {/* Bookings Table */}

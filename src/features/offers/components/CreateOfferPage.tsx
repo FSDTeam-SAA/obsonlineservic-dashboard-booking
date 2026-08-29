@@ -54,9 +54,10 @@ export function CreateOfferPage() {
           fetchAdminProperties({ page: 1, limit: 50 }).catch(() => ({ items: [] })),
         ]);
 
-        if (parksData?.items) {
+        const parksItems = (parksData as any)?.data?.items || (parksData as any)?.items;
+        if (parksItems) {
           setParksList(
-            parksData.items.map((p: any) => ({
+            parksItems.map((p: any) => ({
               id: p._id || p.id,
               name: p.title || p.name,
             }))

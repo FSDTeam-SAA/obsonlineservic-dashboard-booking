@@ -1,47 +1,54 @@
 import { api } from "@/lib/api";
 import {
-  QueryHolidayParkAdmin,
-  AdminPaginatedHolidayParksResponse,
-  SingleAdminHolidayParkResponse,
-  CreateHolidayParkPayload,
-  UpdateHolidayParkPayload,
-  HolidayParkItem,
-} from "../types";
-// Delegate to the shared upload module — single source of truth
-export { uploadSingleImage as uploadImageFile } from "@/features/upload/api/upload.api";
+  HolidayPark,
+  CreateHolidayParkDto,
+  UpdateHolidayParkDto,
+  QueryHolidayParkDto,
+  PaginatedHolidayParksResponse,
+} from "../types/holiday-parks.types";
 
-export async function fetchAdminHolidayParks(
-  query?: QueryHolidayParkAdmin
-): Promise<AdminPaginatedHolidayParksResponse["data"]> {
-  const response = await api.get<AdminPaginatedHolidayParksResponse>("/holiday-parks", {
+export async function fetchHolidayParks(
+  query?: QueryHolidayParkDto
+): Promise<PaginatedHolidayParksResponse> {
+  const response = await api.get<PaginatedHolidayParksResponse>("/holiday-parks", {
     params: query,
   });
+  return response.data;
+}
+
+export const fetchAdminHolidayParks = fetchHolidayParks;
+
+export async function fetchHolidayParkById(id: string): Promise<HolidayPark> {
+  const response = await api.get<{ message: string; data: HolidayPark }>(
+    `/holiday-parks/${id}`
+  );
   return response.data.data;
 }
 
-export async function fetchHolidayParkDetails(id: string): Promise<HolidayParkItem> {
-  const response = await api.get<SingleAdminHolidayParkResponse>(`/holiday-parks/${id}`);
-  return response.data.data;
-}
+export const fetchHolidayParkDetails = fetchHolidayParkById;
 
 export async function createHolidayPark(
-  payload: CreateHolidayParkPayload
-): Promise<HolidayParkItem> {
-  const response = await api.post<SingleAdminHolidayParkResponse>("/holiday-parks", payload);
+  dto: CreateHolidayParkDto
+): Promise<HolidayPark> {
+  const response = await api.post<{ message: string; data: HolidayPark }>(
+    "/holiday-parks",
+    dto
+  );
   return response.data.data;
 }
 
 export async function updateHolidayPark(
   id: string,
-  payload: UpdateHolidayParkPayload
-): Promise<HolidayParkItem> {
-  const response = await api.put<SingleAdminHolidayParkResponse>(`/holiday-parks/${id}`, payload);
+  dto: UpdateHolidayParkDto
+): Promise<HolidayPark> {
+  const response = await api.put<{ message: string; data: HolidayPark }>(
+    `/holiday-parks/${id}`,
+    dto
+  );
   return response.data.data;
 }
 
-export async function deleteHolidayPark(id: string): Promise<boolean> {
-  const response = await api.delete<{ statusCode: number; success: boolean; data: { deleted: boolean } }>(
-    `/holiday-parks/${id}`
-  );
-  return response.data.data?.deleted ?? true;
+export async function deleteHolidayPark(id: string): Promise<{ message: string }> {
+  const response = await api.delete<{ message: string }>(`/holiday-parks/${id}`);
+  return response.data;
 }

@@ -69,7 +69,7 @@ export function EditHolidayParkPage({ parkId }: { parkId: string }) {
     async function loadDetails() {
       try {
         setLoading(true);
-        const data: HolidayParkItem = await fetchHolidayParkDetails(parkId);
+        const data: HolidayParkItem = (await fetchHolidayParkDetails(parkId)) as unknown as HolidayParkItem;
         setName(data.name || "");
         setTitle(data.title || "");
         setShortDescription(data.shortDescription || "");

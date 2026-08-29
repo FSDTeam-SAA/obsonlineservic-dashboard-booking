@@ -2,15 +2,17 @@
 
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
-import { Bell, CalendarDays, CirclePercent, Grid2X2, LogOut, Search, Settings, TicketCheck, UsersRound, User, Loader2, Mail } from "lucide-react";
+import { Bell, CalendarDays, CirclePercent, Grid2X2, LogOut, Search, Settings, TicketCheck, UsersRound, User, Loader2, Mail, TreePine, MessageSquare } from "lucide-react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 const navigation = [
   ["Dashboard", "/dashboard", Grid2X2],
   ["Properties", "/dashboard/properties", CalendarDays],
+  ["Holiday Parks", "/dashboard/holiday-parks", TreePine],
   ["Bookings", "/dashboard/bookings", TicketCheck],
   ["Offers", "/dashboard/offers", CirclePercent],
+  ["Reviews", "/dashboard/reviews", MessageSquare],
   ["Users", "/dashboard/users", UsersRound],
   ["Newsletter", "/dashboard/newsletter", Mail],
   ["Settings", "/dashboard/settings", Settings],

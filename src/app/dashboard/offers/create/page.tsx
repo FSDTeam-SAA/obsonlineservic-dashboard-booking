@@ -1,4 +1,4 @@
-import { CreateOfferPage } from "@/features/offers/component/CreateOfferPage";
+import { CreateOfferPage } from "@/features/offers/components/CreateOfferPage";
 
 export default function CreateOffer() {
   return <CreateOfferPage />;

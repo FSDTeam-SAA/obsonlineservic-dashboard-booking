@@ -1,2 +1,2 @@
-import { SettingsPage } from "@/features/settings/component/SettingsPage";
+import { SettingsPage } from "@/features/settings/components/SettingsPage";
 export default function Settings(){return <SettingsPage/>;}

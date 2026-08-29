@@ -1,4 +1,4 @@
-import { OffersPage } from "@/features/offers/component/OffersPage";
+import { OffersPage } from "@/features/offers/components/OffersPage";
 
 export default function Offers() {
   return <OffersPage />;

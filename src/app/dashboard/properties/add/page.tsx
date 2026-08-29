@@ -1,5 +1,5 @@
-import { AddHolidayParkPage } from "@/features/properties/component/AddHolidayParkPage";
+import { AddPropertyForm } from "@/features/properties/components/AddPropertyForm";
 
-export default function AddHolidayPark() {
-  return <AddHolidayParkPage />;
+export default function AddPropertyPage() {
+  return <AddPropertyForm />;
 }

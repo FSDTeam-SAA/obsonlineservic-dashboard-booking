@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
-import { SidebarNavigationController } from "@/components/sheard/SidebarNavigationController";
+import { SidebarNavigationController } from "@/components/shared/SidebarNavigationController";
 import "./globals.css";
+import Provider from "@/Providers/Provider";
+import MainProviders from "@/Providers/MainProviders";
 
 export const metadata: Metadata = {
   title: "OBS Service Dashboard",
@@ -10,7 +12,14 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body><SidebarNavigationController />{children}</body>
+      <body>
+        <Provider>
+          <MainProviders>
+            <SidebarNavigationController />
+            {children}
+          </MainProviders>
+        </Provider>
+      </body>
     </html>
   );
 }

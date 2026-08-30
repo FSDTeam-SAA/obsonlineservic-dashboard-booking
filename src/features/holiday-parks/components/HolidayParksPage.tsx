@@ -3,14 +3,11 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardShell } from "@/components/shared/DashboardShell";
-import { ImageUploadBox } from "@/components/shared/ImageUploadBox";
 import {
   fetchHolidayParks,
-  createHolidayPark,
-  updateHolidayPark,
   deleteHolidayPark,
 } from "../api/holiday-parks.api";
-import { HolidayPark, CreateHolidayParkDto } from "../types/holiday-parks.types";
+import { HolidayPark } from "../types/holiday-parks.types";
 import {
   TreePine,
   Search,
@@ -20,13 +17,12 @@ import {
   Eye,
   ShieldAlert,
   X,
-  ChevronLeft,
-  ChevronRight,
   MapPin,
-  Clock,
   Home,
   CheckCircle2,
   Star,
+  Sparkles,
+  ShieldCheck,
 } from "lucide-react";
 
 import { HolidayParkTableSkeleton } from "./HolidayParkTableSkeleton";
@@ -44,27 +40,7 @@ export function HolidayParksPage() {
 
   // Modal States
   const [viewingPark, setViewingPark] = useState<HolidayPark | null>(null);
-  const [editingPark, setEditingPark] = useState<HolidayPark | null>(null);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<HolidayPark | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-
-  // Form State
-  const [formData, setFormData] = useState<CreateHolidayParkDto>({
-    name: "",
-    title: "",
-    badgeLocation: "",
-    shortDescription: "",
-    startingPrice: 129,
-    totalCapacity: "180 Guests",
-    totalProperties: 10,
-    checkInTime: "15:00",
-    checkOutTime: "11:00",
-    receptionHours: "24 Hours",
-    coverImage: "",
-    status: "Active",
-    isFeatured: true,
-  });
 
   const loadParks = useCallback(async () => {
     setLoading(true);
@@ -96,71 +72,6 @@ export function HolidayParksPage() {
     void loadParks();
   }, [loadParks]);
 
-  const handleOpenAddModal = () => {
-    setEditingPark(null);
-    setFormData({
-      name: "",
-      title: "",
-      badgeLocation: "VELUWE, NETHERLANDS",
-      shortDescription: "A luxury holiday park surrounded by pristine nature.",
-      startingPrice: 129,
-      totalCapacity: "150 Guests",
-      totalProperties: 12,
-      checkInTime: "15:00",
-      checkOutTime: "11:00",
-      receptionHours: "24 Hours",
-      coverImage: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=80&w=600",
-      status: "Active",
-      isFeatured: true,
-    });
-    setIsAddModalOpen(true);
-  };
-
-  const handleOpenEditModal = (park: HolidayPark) => {
-    setEditingPark(park);
-    setFormData({
-      name: park.name || park.title,
-      title: park.title,
-      badgeLocation: park.badgeLocation || "",
-      shortDescription: park.shortDescription || "",
-      startingPrice: park.startingPrice,
-      totalCapacity: park.totalCapacity || "100 Guests",
-      totalProperties: park.totalProperties || 10,
-      checkInTime: park.checkInTime || "15:00",
-      checkOutTime: park.checkOutTime || "11:00",
-      receptionHours: park.receptionHours || "24 Hours",
-      coverImage: park.coverImage || "",
-      status: park.status || "Active",
-      isFeatured: park.isFeatured ?? true,
-    });
-    setIsAddModalOpen(true);
-  };
-
-  const handleSavePark = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.title.trim() || (formData.startingPrice ?? 0) <= 0) {
-      setError("Please provide a valid park title and positive starting price.");
-      return;
-    }
-
-    setIsSaving(true);
-    setError(null);
-    try {
-      if (editingPark) {
-        await updateHolidayPark(editingPark._id, formData);
-      } else {
-        await createHolidayPark(formData);
-      }
-      setIsAddModalOpen(false);
-      void loadParks();
-    } catch (err: any) {
-      console.error("Save holiday park error:", err);
-      setError("Failed to save holiday park details.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   const handleDeleteConfirm = async () => {
     if (!pendingDelete) return;
     try {
@@ -184,10 +95,9 @@ export function HolidayParksPage() {
     <DashboardShell
       active="Holiday Parks"
       title="Holiday Parks Management"
-      subtitle="Manage resort parks, amenities, check-in times, and park-level pricing."
+      subtitle="Manage resort parks, amenities, eco-badges, check-in times, and park-level pricing."
     >
       <main className="container p-5 md:p-8 space-y-6 font-sans">
-
         {/* KPI Stats Bar */}
         <section className="grid grid-cols-1 sm:grid-cols-4 gap-4">
           <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs flex items-center gap-3.5">
@@ -197,7 +107,7 @@ export function HolidayParksPage() {
             <div>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Parks</span>
               <strong className="text-xl font-bold text-slate-900 block leading-tight">{totalCount}</strong>
-              <span className="text-[10px] text-slate-500 font-medium">Resort Parks</span>
+              <span className="text-[10px] text-slate-500 font-medium">Resort Destinations</span>
             </div>
           </div>
 
@@ -275,12 +185,13 @@ export function HolidayParksPage() {
               <option value="All">All Status</option>
               <option value="Active">Active Only</option>
               <option value="Draft">Draft Only</option>
+              <option value="Archived">Archived Only</option>
             </select>
           </div>
 
           <div className="flex items-center gap-3 self-end sm:self-center">
             <button
-              onClick={handleOpenAddModal}
+              onClick={() => router.push("/dashboard/holiday-parks/add")}
               className="h-10 px-4 bg-[#3b338c] hover:bg-[#2d2670] text-white font-semibold text-xs rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
             >
               <Plus size={15} />
@@ -324,9 +235,9 @@ export function HolidayParksPage() {
                     >
                       <td className="py-3.5 px-4">
                         <div className="flex items-center gap-3">
-                          {park.coverImage ? (
+                          {park.coverImage || park.heroBanner ? (
                             <img
-                              src={park.coverImage}
+                              src={park.coverImage || park.heroBanner}
                               alt=""
                               className="w-10 h-10 rounded-lg object-cover border border-slate-200 shrink-0"
                             />
@@ -336,8 +247,11 @@ export function HolidayParksPage() {
                             </div>
                           )}
                           <div className="min-w-0">
-                            <div className="font-bold text-slate-900 group-hover:text-[#3b338c] transition-colors truncate">
-                              {park.title || park.name}
+                            <div className="font-bold text-slate-900 group-hover:text-[#3b338c] transition-colors truncate flex items-center gap-1.5">
+                              <span>{park.title || park.name}</span>
+                              {park.isFeatured && (
+                                <Star size={12} className="text-amber-500 fill-amber-400 shrink-0" />
+                              )}
                             </div>
                             <div className="text-[10px] text-slate-400 truncate">
                               ID: {park._id.slice(-6)}
@@ -348,27 +262,34 @@ export function HolidayParksPage() {
                       <td className="py-3.5 px-4">
                         <div className="text-slate-700 font-medium flex items-center gap-1">
                           <MapPin size={12} className="text-slate-400 shrink-0" />
-                          <span>{park.location?.city ? `${park.location.city}, ${park.location.country || ''}` : (park.badgeLocation || "Netherlands")}</span>
+                          <span>
+                            {park.location?.city
+                              ? `${park.location.city}, ${park.location.country || ""}`
+                              : park.badgeLocation || "Netherlands"}
+                          </span>
                         </div>
                       </td>
                       <td className="py-3.5 px-4 font-semibold text-slate-900">
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 group-hover:bg-[#3b338c] group-hover:text-white transition-colors text-xs">
                           <Home size={13} />
-                          {park.totalProperties || 0} Properties
+                          {park.totalProperties || 0} Lodges
                         </span>
                       </td>
                       <td className="py-3.5 px-4 text-slate-600">
                         {park.totalCapacity || "N/A"}
                       </td>
                       <td className="py-3.5 px-4 font-bold text-[#3b338c]">
-                        €{park.startingPrice} <span className="text-[10px] font-normal text-slate-400">/night</span>
+                        {park.currency || "€"}{park.startingPrice} <span className="text-[10px] font-normal text-slate-400">/night</span>
                       </td>
                       <td className="py-3.5 px-4">
                         <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${park.status === "Active"
-                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                            : "bg-slate-100 text-slate-600 border-slate-200"
-                            }`}
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
+                            park.status === "Active"
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                              : park.status === "Draft"
+                              ? "bg-amber-50 text-amber-700 border-amber-200"
+                              : "bg-slate-100 text-slate-600 border-slate-200"
+                          }`}
                         >
                           {park.status || "Active"}
                         </span>
@@ -386,14 +307,14 @@ export function HolidayParksPage() {
                           <button
                             onClick={() => setViewingPark(park)}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-[#3b338c] hover:bg-slate-100 transition-colors"
-                            title="View park details"
+                            title="Quick View details"
                           >
                             <Eye size={15} />
                           </button>
                           <button
-                            onClick={() => handleOpenEditModal(park)}
+                            onClick={() => router.push(`/dashboard/holiday-parks/${park._id}/edit`)}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-[#3b338c] hover:bg-slate-100 transition-colors"
-                            title="Edit park"
+                            title="Edit park specification"
                           >
                             <Pencil size={15} />
                           </button>
@@ -415,194 +336,131 @@ export function HolidayParksPage() {
         </div>
       </main>
 
-      {/* Add / Edit Park Modal */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl border border-slate-100 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-semibold text-slate-900 text-sm">
-                {editingPark ? "Edit Holiday Park" : "Add Holiday Park"}
-              </h3>
-              <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-slate-600">
-                <X size={16} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSavePark} className="space-y-3 text-xs">
-              <div>
-                <label className="block text-slate-600 font-medium mb-1">Park Name / Title</label>
-                <input
-                  required
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value, name: e.target.value })}
-                  className="w-full h-9 px-3 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-[#3b338c] outline-none"
-                  placeholder="e.g. Nordic Pines Retreat"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-600 font-medium mb-1">Location Badge</label>
-                  <input
-                    value={formData.badgeLocation}
-                    onChange={(e) => setFormData({ ...formData, badgeLocation: e.target.value })}
-                    className="w-full h-9 px-3 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-[#3b338c] outline-none"
-                    placeholder="e.g. VELUWE, NETHERLANDS"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-600 font-medium mb-1">Starting Price (€/night)</label>
-                  <input
-                    type="number"
-                    required
-                    min={1}
-                    value={formData.startingPrice}
-                    onChange={(e) => setFormData({ ...formData, startingPrice: Number(e.target.value) })}
-                    className="w-full h-9 px-3 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-[#3b338c] outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="block text-slate-600 font-medium mb-1">Check-In</label>
-                  <input
-                    value={formData.checkInTime}
-                    onChange={(e) => setFormData({ ...formData, checkInTime: e.target.value })}
-                    className="w-full h-9 px-2 border border-slate-200 rounded-lg bg-slate-50 text-center outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-600 font-medium mb-1">Check-Out</label>
-                  <input
-                    value={formData.checkOutTime}
-                    onChange={(e) => setFormData({ ...formData, checkOutTime: e.target.value })}
-                    className="w-full h-9 px-2 border border-slate-200 rounded-lg bg-slate-50 text-center outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-600 font-medium mb-1">Reception</label>
-                  <input
-                    value={formData.receptionHours}
-                    onChange={(e) => setFormData({ ...formData, receptionHours: e.target.value })}
-                    className="w-full h-9 px-2 border border-slate-200 rounded-lg bg-slate-50 text-center outline-none"
-                  />
-                </div>
-              </div>
-
-              <ImageUploadBox
-                label="Cover Image"
-                hint="Upload image file or paste URL (recommended 600×400)"
-                value={formData.coverImage || ""}
-                onChange={(url) => setFormData({ ...formData, coverImage: url })}
-                disabled={isSaving}
-              />
-
-              <div>
-                <label className="block text-slate-600 font-medium mb-1">Short Description</label>
-                <textarea
-                  rows={2}
-                  value={formData.shortDescription}
-                  onChange={(e) => setFormData({ ...formData, shortDescription: e.target.value })}
-                  className="w-full p-2.5 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-[#3b338c] outline-none"
-                />
-              </div>
-
-              <div className="pt-2 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 font-semibold hover:bg-slate-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSaving}
-                  className="px-4 py-2 bg-[#3b338c] hover:bg-[#2d2670] text-white font-semibold rounded-lg transition-colors disabled:opacity-50"
-                >
-                  {isSaving ? "Saving..." : "Save Park"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
       {/* Viewing Details Modal */}
       {viewingPark && (
         <div className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl border border-slate-100 font-sans">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl border border-slate-100 font-sans max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
-                <TreePine size={16} className="text-[#3b338c]" />
-                <h3 className="font-bold text-slate-900 text-sm">Holiday Park Overview</h3>
+                <TreePine size={18} className="text-[#3b338c]" />
+                <h3 className="font-bold text-slate-900 text-sm">Holiday Park Specifications</h3>
               </div>
               <button onClick={() => setViewingPark(null)} className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">
                 <X size={16} />
               </button>
             </div>
 
-            <div className="space-y-3.5 text-xs text-slate-600">
-              {viewingPark.coverImage && (
+            <div className="space-y-4 text-xs text-slate-600">
+              {(viewingPark.coverImage || viewingPark.heroBanner) && (
                 <div className="relative">
-                  <img src={viewingPark.coverImage} alt="" className="w-full h-40 rounded-xl object-cover border border-slate-100 shadow-xs" />
+                  <img
+                    src={viewingPark.coverImage || viewingPark.heroBanner}
+                    alt=""
+                    className="w-full h-44 rounded-xl object-cover border border-slate-100 shadow-xs"
+                  />
                   <span
-                    className={`absolute top-2 right-2 px-2.5 py-0.5 rounded-full text-[10px] font-bold border shadow-xs ${viewingPark.status === "Active"
-                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                      : "bg-amber-50 text-amber-700 border-amber-200"
-                      }`}
+                    className={`absolute top-2 right-2 px-2.5 py-0.5 rounded-full text-[10px] font-bold border shadow-xs ${
+                      viewingPark.status === "Active"
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : "bg-amber-50 text-amber-700 border-amber-200"
+                    }`}
                   >
                     {viewingPark.status || "Active"}
                   </span>
                 </div>
               )}
               <div>
-                <div className="font-bold text-slate-900 text-base">{viewingPark.title || viewingPark.name}</div>
+                <div className="font-bold text-slate-900 text-base flex items-center gap-2">
+                  <span>{viewingPark.title || viewingPark.name}</span>
+                  {viewingPark.rating && (
+                    <span className="text-xs bg-amber-50 border border-amber-200 text-amber-700 px-2 py-0.5 rounded-md flex items-center gap-1 font-bold">
+                      <Star size={12} className="fill-amber-400" /> {viewingPark.rating} ({viewingPark.reviewsCount || 0})
+                    </span>
+                  )}
+                </div>
                 <div className="text-slate-400 flex items-center gap-1 mt-0.5">
-                  <MapPin size={13} className="text-slate-400" /> <span>{viewingPark.badgeLocation || "Veluwe, Netherlands"}</span>
+                  <MapPin size={13} className="text-slate-400" />
+                  <span>
+                    {viewingPark.location?.formattedAddress || viewingPark.badgeLocation || "Veluwe, Netherlands"}
+                  </span>
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
                 <div>
                   <span className="text-[10px] text-slate-400 font-medium block">Starting Rate</span>
-                  <span className="font-bold text-[#3b338c] text-sm">€{viewingPark.startingPrice} <span className="text-[10px] font-normal text-slate-400">/nt</span></span>
+                  <span className="font-bold text-[#3b338c] text-sm">
+                    {viewingPark.currency || "€"}{viewingPark.startingPrice} <span className="text-[10px] font-normal text-slate-400">/nt</span>
+                  </span>
                 </div>
                 <div>
-                  <span className="text-[10px] text-slate-400 font-medium block">Lodges</span>
-                  <span className="font-bold text-slate-900 text-sm">{viewingPark.totalProperties || 10} Units</span>
+                  <span className="text-[10px] text-slate-400 font-medium block">Properties</span>
+                  <span className="font-bold text-slate-900 text-sm">{viewingPark.totalProperties || 0} Units</span>
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-400 font-medium block">Capacity</span>
-                  <span className="font-bold text-slate-900 text-sm">{viewingPark.totalCapacity || "150"}</span>
+                  <span className="font-bold text-slate-900 text-sm">{viewingPark.totalCapacity || "N/A"}</span>
                 </div>
               </div>
 
-              <div className="space-y-1 text-slate-500 bg-slate-50/60 p-3 rounded-xl border border-slate-100 text-[11px]">
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-400">Check-in / Check-out:</span>
-                  <span className="font-semibold text-slate-700">{viewingPark.checkInTime || "15:00"} - {viewingPark.checkOutTime || "11:00"}</span>
+              {viewingPark.ecoBadge?.title && (
+                <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3 flex items-center gap-2.5 text-emerald-800">
+                  <ShieldCheck size={18} className="text-emerald-600 shrink-0" />
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider block text-emerald-600">
+                      {viewingPark.ecoBadge.tagline || "CERTIFIED ECO-PARK"}
+                    </span>
+                    <strong className="text-xs font-semibold block">{viewingPark.ecoBadge.title}</strong>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-400">Reception Desk:</span>
-                  <span className="font-semibold text-slate-700">{viewingPark.receptionHours || "24 Hours"}</span>
-                </div>
-              </div>
+              )}
 
-              <p className="text-slate-600 leading-relaxed font-normal">{viewingPark.shortDescription || "A luxury holiday park surrounded by pristine nature and peaceful woodlands."}</p>
+              {viewingPark.amenities?.length ? (
+                <div className="space-y-1.5">
+                  <span className="text-[11px] font-bold text-slate-700 block">General Amenities:</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {viewingPark.amenities.map((a, i) => (
+                      <span key={i} className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] font-medium">
+                        {a}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {viewingPark.featuredAmenities?.length ? (
+                <div className="space-y-1.5">
+                  <span className="text-[11px] font-bold text-slate-700 block">Featured Highlights:</span>
+                  <div className="grid grid-cols-1 gap-1.5">
+                    {viewingPark.featuredAmenities.map((item, i) => (
+                      <div key={i} className="p-2 bg-slate-50 rounded-lg border border-slate-100 flex items-center gap-2">
+                        <Sparkles size={14} className="text-[#3b338c] shrink-0" />
+                        <div>
+                          <strong className="text-[11px] text-slate-900 block">{item.title}</strong>
+                          <span className="text-[10px] text-slate-500 block">{item.description}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              <p className="text-slate-600 leading-relaxed font-normal">
+                {viewingPark.shortDescription || viewingPark.fullDescription || "A luxury holiday park surrounded by pristine nature."}
+              </p>
             </div>
 
-            <div className="pt-2 flex items-center justify-between border-t border-slate-100">
+            <div className="pt-3 flex items-center justify-between border-t border-slate-100 gap-2">
               <button
                 onClick={() => {
+                  const id = viewingPark._id;
                   setViewingPark(null);
-                  router.push(`/dashboard/holiday-parks/${viewingPark._id}/properties`);
+                  router.push(`/dashboard/holiday-parks/${id}/edit`);
                 }}
                 className="px-4 py-2 bg-[#3b338c] hover:bg-[#2d2670] text-white font-semibold rounded-xl text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
               >
-                <Home size={14} />
-                <span>View Lodges ({viewingPark.totalProperties || 0})</span>
+                <Pencil size={14} />
+                <span>Edit Full Spec</span>
               </button>
 
               <button
@@ -610,6 +468,37 @@ export function HolidayParksPage() {
                 className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition-colors cursor-pointer"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {pendingDelete && (
+        <div className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-xl border border-slate-100 text-center font-sans">
+            <div className="size-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto">
+              <Trash2 size={24} />
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-900 text-sm">Delete Holiday Park?</h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Are you sure you want to delete <strong className="text-slate-800">{pendingDelete.title || pendingDelete.name}</strong>? This action cannot be undone.
+              </p>
+            </div>
+            <div className="flex items-center justify-center gap-2 pt-2">
+              <button
+                onClick={() => setPendingDelete(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer shadow-xs"
+              >
+                Delete Park
               </button>
             </div>
           </div>

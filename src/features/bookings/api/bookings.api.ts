@@ -57,4 +57,12 @@ export async function cancelAdminBooking(id: string): Promise<AdminBooking> {
   return unwrapData<AdminBooking>(response.data);
 }
 
+/**
+ * Permanently Delete a Booking (Admin)
+ */
+export async function deleteAdminBooking(id: string): Promise<{ message: string }> {
+  const response = await api.delete(`/bookings/${id}`);
+  return unwrapData<{ message: string }>(response.data);
+}
+
 export { fetchDashboardOverview } from "@/features/dashboard/api/dashboard.api";

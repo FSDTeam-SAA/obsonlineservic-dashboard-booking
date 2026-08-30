@@ -2,38 +2,33 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, CalendarDays, Check, CirclePercent, Grid2X2, LogOut, Plus, Search, Settings, TicketCheck } from "lucide-react";
 import Link from "next/link";
+import {
+  ChevronLeft,
+  Clock,
+  Plus,
+  X,
+  Sparkles,
+} from "lucide-react";
+import { DashboardShell } from "@/components/shared/DashboardShell";
 import { createHolidayPark } from "@/features/holiday-parks/api/holiday-parks.api";
 import { CreateHolidayParkPayload, ParkStatusType } from "@/features/holiday-parks/types";
-import { ImageUploadBox } from "@/components/shared/ImageUploadBox";
+import { MultipleImageUploadBox, GalleryValues } from "@/components/shared/MultipleImageUploadBox";
+import { CounterInput } from "@/components/shared/CounterInput";
+import { RichTextArea } from "@/components/shared/RichTextArea";
+import { GoogleMapPreview } from "@/components/shared/GoogleMapPreview";
 
-const assets = {
-  logo: "https://www.figma.com/api/mcp/asset/023f7a35-324e-49d9-81b3-11bf906f507e.png",
-  user: "https://www.figma.com/api/mcp/asset/120640dc-bb7b-440f-9af7-8595142bf317.png",
-  admin: "https://www.figma.com/api/mcp/asset/a4cec890-879f-4c79-9310-8e5c39be0a05.png",
-  map: "https://www.figma.com/api/mcp/asset/33f2396e-1cd3-465e-8a78-275167afa8e2.png",
-};
-
-const navigation = [
-  ["Dashboard", "/dashboard", Grid2X2],
-  ["Properties", "/dashboard/properties", CalendarDays],
-  ["Bookings", "/dashboard/bookings", TicketCheck],
-  ["Offers", "/dashboard/offers", CirclePercent],
-  ["Settings", "/dashboard/settings", Settings],
-] as const;
-
-const availableAmenities = [
-  "Swimming Pool",
-  "Spa",
-  "Restaurant",
-  "Free Parking",
-  "Free Wi-Fi",
-  "Kids Playground",
-  "Pet Friendly",
-  "Bike Rental",
-  "EV Charging",
-  "Gym",
+const DEFAULT_AMENITIES = [
+  { id: "Swimming Pool", label: "Swimming Pool", icon: "🏊" },
+  { id: "Spa", label: "Spa", icon: "♨️" },
+  { id: "Restaurant", label: "Restaurant", icon: "🍽️" },
+  { id: "Free Parking", label: "Free Parking", icon: "🚗" },
+  { id: "Free Wi-Fi", label: "Free Wi-Fi", icon: "📶" },
+  { id: "Kids Playground", label: "Kids Playground", icon: "🛝" },
+  { id: "Pet Friendly", label: "Pet Friendly", icon: "🐶" },
+  { id: "Bike Rental", label: "Bike Rental", icon: "🚴" },
+  { id: "EV Charging", label: "EV Charging", icon: "⚡" },
+  { id: "Gym", label: "Gym", icon: "🏋️" },
 ];
 
 export function AddHolidayParkPage() {
@@ -41,47 +36,76 @@ export function AddHolidayParkPage() {
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Form State
+  // Basic Information
   const [name, setName] = useState("");
   const [title, setTitle] = useState("");
   const [shortDescription, setShortDescription] = useState("");
   const [fullDescription, setFullDescription] = useState("");
+
+  // Amenities State
+  const [amenitiesList, setAmenitiesList] = useState(DEFAULT_AMENITIES);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([
     "Swimming Pool",
     "Spa",
     "Restaurant",
+    "Free Wi-Fi",
   ]);
+  const [newAmenityName, setNewAmenityName] = useState("");
+  const [showAddAmenity, setShowAddAmenity] = useState(false);
 
-  const [totalProperties, setTotalProperties] = useState("24");
-  const [totalCapacity, setTotalCapacity] = useState("180 Guests");
-  const [startingPrice, setStartingPrice] = useState("129");
+  // Park Information (Counters & Timings)
+  const [totalProperties, setTotalProperties] = useState<number>(24);
+  const [totalCapacity, setTotalCapacity] = useState<number>(180);
+  const [startingPrice, setStartingPrice] = useState<number>(129);
   const [checkInTime, setCheckInTime] = useState("15:00");
   const [checkOutTime, setCheckOutTime] = useState("11:00");
   const [receptionHours, setReceptionHours] = useState("24 Hours");
 
+  // Gallery
+  const [gallery, setGallery] = useState<GalleryValues>({
+    main: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=80&w=1200",
+    side1: "https://images.unsplash.com/photo-1582719508461-905c673771fd?q=80&w=600",
+    side2: "https://images.unsplash.com/photo-1510798831971-661eb04b3739?q=80&w=600",
+    side3: "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?q=80&w=600",
+  });
+
+  // Location
   const [country, setCountry] = useState("Netherlands");
   const [city, setCity] = useState("Utrecht");
   const [region, setRegion] = useState("Veluwe");
-  const [postalCode, setPostalCode] = useState("3811 AB");
+  const [googleMapLocation, setGoogleMapLocation] = useState("");
+  const [postalCode, setPostalCode] = useState("3511 AR");
 
-  const [heroBanner, setHeroBanner] = useState("");
-  const [coverImage, setCoverImage] = useState("");
   const [isFeatured, setIsFeatured] = useState(true);
   const [status, setStatus] = useState<ParkStatusType>("Active");
 
-  const handleAmenityToggle = (amenity: string) => {
+  const handleGalleryChange = (key: keyof GalleryValues, url: string) => {
+    setGallery((prev) => ({ ...prev, [key]: url }));
+  };
+
+  const toggleAmenity = (amenityId: string) => {
     setSelectedAmenities((prev) =>
-      prev.includes(amenity)
-        ? prev.filter((a) => a !== amenity)
-        : [...prev, amenity]
+      prev.includes(amenityId)
+        ? prev.filter((a) => a !== amenityId)
+        : [...prev, amenityId]
     );
   };
 
-  // handleFileUpload removed — ImageUploadBox manages upload internally
+  const handleAddCustomAmenity = () => {
+    if (!newAmenityName.trim()) return;
+    const name = newAmenityName.trim();
+    if (!amenitiesList.some((a) => a.id === name)) {
+      const newAmenity = { id: name, label: name, icon: "✨" };
+      setAmenitiesList((prev) => [...prev, newAmenity]);
+      setSelectedAmenities((prev) => [...prev, name]);
+    }
+    setNewAmenityName("");
+    setShowAddAmenity(false);
+  };
 
   const handleSubmit = async (isDraft = false) => {
     if (!name || !title) {
-      setErrorMsg("Name and Title are required.");
+      setErrorMsg("Holiday Park Name and Title are required.");
       return;
     }
 
@@ -90,13 +114,13 @@ export function AddHolidayParkPage() {
       setErrorMsg(null);
 
       const payload: CreateHolidayParkPayload = {
-        name,
-        title,
+        name: name.trim(),
+        title: title.trim(),
         badgeLocation: `${region.toUpperCase()}, ${country.toUpperCase()}`,
-        shortDescription,
-        fullDescription,
+        shortDescription: shortDescription.trim(),
+        fullDescription: fullDescription.trim(),
         startingPrice: Number(startingPrice) || 129,
-        totalCapacity,
+        totalCapacity: `${totalCapacity} Guests`,
         totalProperties: Number(totalProperties) || 24,
         availableProperties: Number(totalProperties) || 24,
         checkInTime,
@@ -109,8 +133,8 @@ export function AddHolidayParkPage() {
           region,
           postalCode,
         },
-        heroBanner: heroBanner || "https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=80&w=1200",
-        coverImage: coverImage || "https://images.unsplash.com/photo-1582719508461-905c673771fd?q=80&w=600",
+        heroBanner: gallery.main || "https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=80&w=1200",
+        coverImage: gallery.side1 || "https://images.unsplash.com/photo-1582719508461-905c673771fd?q=80&w=600",
         isFeatured,
         status: isDraft ? "Inactive" : status,
       };
@@ -126,304 +150,331 @@ export function AddHolidayParkPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8f9fc] font-sans text-slate-900 flex">
-      {/* Sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-[260px] flex-col justify-between bg-white px-6 pb-6 pt-3 md:flex border-r border-slate-200">
-        <div>
-          <div className="flex h-[106px] items-center border-b border-slate-200">
-            <img src={assets.logo} alt="OBS Online Service" className="max-h-20 w-full object-contain object-left" />
-          </div>
-          <nav className="mt-8 grid gap-2">
-            {navigation.map(([label, href, Icon], index) => (
-              <Link
-                key={label}
-                href={href}
-                className={`flex h-12 items-center gap-3 rounded-md px-3 text-base transition-colors ${
-                  index === 1
-                    ? "bg-[#3b338c] font-bold text-white"
-                    : "text-slate-700 hover:bg-violet-50"
-                }`}
-              >
-                <Icon size={20} />
-                <span>{label}</span>
-              </Link>
-            ))}
-          </nav>
+    <DashboardShell
+      active="Properties"
+      title="Properties"
+      subtitle="Manage your luxury holiday destinations from one beautiful workspace."
+    >
+      <main className="p-4 md:p-8 font-sans grid gap-6 max-w-6xl mx-auto pb-24">
+        {/* Back Link */}
+        <div className="flex items-center justify-between">
+          <Link
+            href="/dashboard/properties"
+            className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-[#30277a] transition-colors"
+          >
+            <ChevronLeft size={16} />
+            Back to Holiday Parks List
+          </Link>
         </div>
-        <div className="grid gap-6">
-          <div className="flex items-center gap-3">
-            <img src={assets.user} alt="Demo Name" className="size-11 rounded-full object-cover" />
-            <div>
-              <strong className="block text-base">Demo Name</strong>
-              <span className="block text-slate-500 text-sm">Admin</span>
-            </div>
-          </div>
-          <button className="flex h-12 items-center justify-center gap-2 rounded-md border border-[#e53838] text-base font-semibold text-[#e53838] hover:bg-red-50 transition-colors">
-            <LogOut size={20} />
-            Log out
-          </button>
-        </div>
-      </aside>
 
-      {/* Main Workspace */}
-      <div className="md:ml-[260px] flex-1">
-        <header className="sticky top-0 z-10 flex min-h-[100px] flex-col justify-between gap-4 border-b border-slate-200 bg-white/90 px-5 py-5 backdrop-blur md:flex-row md:items-center md:px-8">
-          <div>
-            <h1 className="text-2xl font-semibold text-[#1a1a1a]">Add New Holiday Park</h1>
-            <p className="mt-1 text-sm text-slate-500">Create a luxury holiday park destination.</p>
+        {errorMsg && (
+          <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold">
+            {errorMsg}
           </div>
-          <div className="flex items-center gap-3">
-            <label className="flex h-11 min-w-0 flex-1 items-center gap-2 rounded border border-[#ddd7cd] px-4 text-slate-400 md:w-[320px] bg-white">
-              <Search size={17} />
-              <input className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400" placeholder="Search parks, bookings..." />
-            </label>
-            <button aria-label="Notifications" className="relative grid size-11 place-items-center rounded border border-[#3b338c] bg-white">
-              <Bell size={18} />
-              <i className="absolute right-2.5 top-2.5 size-1.5 rounded-full bg-red-600" />
-            </button>
-            <div className="hidden items-center gap-3 sm:flex">
-              <img src={assets.admin} alt="Elena Marsh" className="size-10 rounded-full border border-slate-200 object-cover" />
-              <div>
-                <strong className="block text-sm font-medium">Elena Marsh</strong>
-                <span className="inline-block rounded-full bg-[#193b24]/10 px-2 py-0.5 text-xs uppercase text-[#3b338c]">Administrator</span>
-              </div>
-            </div>
-          </div>
-        </header>
+        )}
 
-        <main className="p-5 md:p-8 grid gap-6 max-w-5xl">
-          {errorMsg && (
-            <div className="p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm font-medium">
-              {errorMsg}
-            </div>
-          )}
+        <form onSubmit={(e) => { e.preventDefault(); handleSubmit(false); }} className="grid gap-6">
+          {/* Section 1: Basic Information */}
+          <section className="p-6 border border-slate-200/80 rounded-2xl bg-white shadow-2xs space-y-5">
+            <h2 className="text-base font-bold text-slate-900 tracking-tight">Basic Information</h2>
 
-          <FormSection title="Basic Information">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <label className="grid gap-2 text-slate-900 text-sm font-semibold">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              <label className="grid gap-1.5 font-semibold text-slate-800">
                 <span>Holiday Park Name *</span>
                 <input
+                  required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="h-12 px-4 border border-slate-200 rounded-lg text-slate-900 text-sm outline-none focus:border-[#3b338c]"
                   placeholder="Nordic Pines Retreat"
+                  className="h-10 px-3.5 border border-slate-200 rounded-xl outline-none focus:border-[#30277a] bg-white text-slate-800 text-xs"
                 />
               </label>
-              <label className="grid gap-2 text-slate-900 text-sm font-semibold">
+
+              <label className="grid gap-1.5 font-semibold text-slate-800">
                 <span>Title *</span>
                 <input
+                  required
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="h-12 px-4 border border-slate-200 rounded-lg text-slate-900 text-sm outline-none focus:border-[#3b338c]"
-                  placeholder="Nordic Pines Retreat"
+                  placeholder="Enter folder name"
+                  className="h-10 px-3.5 border border-slate-200 rounded-xl outline-none focus:border-[#30277a] bg-white text-slate-800 text-xs"
                 />
               </label>
             </div>
 
-            <label className="grid gap-2 text-slate-900 text-sm font-semibold">
+            <label className="grid gap-1.5 font-semibold text-slate-800 text-xs">
               <span>Short Description</span>
               <input
                 value={shortDescription}
                 onChange={(e) => setShortDescription(e.target.value)}
-                className="h-12 px-4 border border-slate-200 rounded-lg text-slate-900 text-sm outline-none focus:border-[#3b338c]"
                 placeholder="A one-line summary shown on cards"
+                className="h-10 px-3.5 border border-slate-200 rounded-xl outline-none focus:border-[#30277a] bg-white text-slate-800 text-xs"
               />
             </label>
 
-            <label className="grid gap-2 text-slate-900 text-sm font-semibold">
-              <span>Full Description</span>
-              <textarea
-                value={fullDescription}
-                onChange={(e) => setFullDescription(e.target.value)}
-                className="w-full h-36 p-4 border border-slate-200 rounded-lg outline-none font-sans text-sm focus:border-[#3b338c] placeholder:text-slate-400"
-                placeholder="Describe the atmosphere, surroundings and experience..."
-              />
-            </label>
-          </FormSection>
+            <RichTextArea
+              label="Full Description"
+              value={fullDescription}
+              onChange={setFullDescription}
+              placeholder="Describe the atmosphere, surroundings and experience..."
+            />
+          </section>
 
-          <FormSection title="Amenities">
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-              {availableAmenities.map((amenity) => {
-                const isSelected = selectedAmenities.includes(amenity);
+          {/* Section 2: Amenities */}
+          <section className="p-6 border border-slate-200/80 rounded-2xl bg-white shadow-2xs space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-bold text-slate-900 tracking-tight">Amenities</h2>
+              {showAddAmenity && (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={newAmenityName}
+                    onChange={(e) => setNewAmenityName(e.target.value)}
+                    placeholder="Amenity name..."
+                    className="h-8 px-2.5 text-xs border border-slate-200 rounded-lg outline-none focus:border-[#30277a]"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddCustomAmenity}
+                    className="h-8 px-3 bg-[#30277a] text-white text-xs font-semibold rounded-lg hover:bg-[#251e60]"
+                  >
+                    Add
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddAmenity(false)}
+                    className="text-slate-400 hover:text-slate-600 p-1"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2.5">
+              {amenitiesList.map((amenity) => {
+                const isSelected = selectedAmenities.includes(amenity.id);
                 return (
-                  <label key={amenity} className="flex items-center gap-2 text-slate-800 text-sm cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => handleAmenityToggle(amenity)}
-                      className="peer absolute opacity-0"
-                    />
-                    <span
-                      className={`w-5 h-5 border rounded grid place-items-center transition-colors ${
-                        isSelected
-                          ? "bg-[#3b338c] border-[#3b338c] text-white"
-                          : "border-slate-300 bg-white"
-                      }`}
-                    >
-                      {isSelected && <Check size={14} />}
+                  <button
+                    key={amenity.id}
+                    type="button"
+                    onClick={() => toggleAmenity(amenity.id)}
+                    className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-semibold transition-all cursor-pointer select-none ${
+                      isSelected
+                        ? "border-[#30277a] bg-[#30277a]/5 text-[#30277a]"
+                        : "border-slate-200 bg-slate-50/50 text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    <span>{amenity.icon}</span>
+                    <span>{amenity.label}</span>
+                    <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center text-[9px] ${
+                      isSelected ? "border-[#30277a] bg-[#30277a] text-white" : "border-slate-300 bg-white"
+                    }`}>
+                      {isSelected && "✓"}
                     </span>
-                    {amenity}
-                  </label>
+                  </button>
                 );
               })}
-            </div>
-          </FormSection>
 
-          <FormSection title="Park Details">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <label className="grid gap-2 text-slate-900 text-sm font-semibold">
-                <span>Total Properties</span>
-                <input
-                  value={totalProperties}
-                  onChange={(e) => setTotalProperties(e.target.value)}
-                  className="h-12 px-4 border border-slate-200 rounded-lg text-slate-900 text-sm outline-none"
-                  placeholder="24"
-                />
-              </label>
-              <label className="grid gap-2 text-slate-900 text-sm font-semibold">
-                <span>Total Capacity</span>
-                <input
-                  value={totalCapacity}
-                  onChange={(e) => setTotalCapacity(e.target.value)}
-                  className="h-12 px-4 border border-slate-200 rounded-lg text-slate-900 text-sm outline-none"
-                  placeholder="180 Guests"
-                />
-              </label>
-              <label className="grid gap-2 text-slate-900 text-sm font-semibold">
-                <span>Starting Price (Per Night)</span>
-                <input
-                  value={startingPrice}
-                  onChange={(e) => setStartingPrice(e.target.value)}
-                  className="h-12 px-4 border border-slate-200 rounded-lg text-slate-900 text-sm outline-none"
-                  placeholder="129"
-                />
-              </label>
-              <label className="grid gap-2 text-slate-900 text-sm font-semibold">
-                <span>Check-in Time</span>
-                <input
-                  value={checkInTime}
-                  onChange={(e) => setCheckInTime(e.target.value)}
-                  className="h-12 px-4 border border-slate-200 rounded-lg text-slate-900 text-sm outline-none"
-                  placeholder="15:00"
-                />
-              </label>
-              <label className="grid gap-2 text-slate-900 text-sm font-semibold">
-                <span>Check-out Time</span>
-                <input
-                  value={checkOutTime}
-                  onChange={(e) => setCheckOutTime(e.target.value)}
-                  className="h-12 px-4 border border-slate-200 rounded-lg text-slate-900 text-sm outline-none"
-                  placeholder="11:00"
-                />
-              </label>
-              <label className="grid gap-2 text-slate-900 text-sm font-semibold">
-                <span>Reception Hours</span>
-                <input
+              {!showAddAmenity && (
+                <button
+                  type="button"
+                  onClick={() => setShowAddAmenity(true)}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-dashed border-[#30277a] bg-[#30277a]/5 text-[#30277a] text-xs font-bold hover:bg-[#30277a]/10 transition-colors cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>New Add</span>
+                </button>
+              )}
+            </div>
+          </section>
+
+          {/* Section 3: Park Information */}
+          <section className="p-6 border border-slate-200/80 rounded-2xl bg-white shadow-2xs space-y-4">
+            <h2 className="text-base font-bold text-slate-900 tracking-tight">Park Information</h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <CounterInput
+                label="Total Properties"
+                value={totalProperties}
+                onChange={setTotalProperties}
+                min={1}
+                max={500}
+              />
+              <CounterInput
+                label="Total Capacity"
+                value={totalCapacity}
+                onChange={setTotalCapacity}
+                min={10}
+                max={5000}
+                step={10}
+                unit="Guests"
+              />
+              <CounterInput
+                label="Starting Price (Per Night)"
+                value={startingPrice}
+                onChange={setStartingPrice}
+                min={10}
+                max={2000}
+                step={5}
+                unit="€"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold text-slate-800 block">Check-in Time</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={checkInTime}
+                    onChange={(e) => setCheckInTime(e.target.value)}
+                    className="w-full h-10 px-3.5 pr-9 border border-slate-200 rounded-xl outline-none focus:border-[#30277a] text-xs font-semibold text-slate-800"
+                  />
+                  <Clock className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold text-slate-800 block">Check-out Time</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={checkOutTime}
+                    onChange={(e) => setCheckOutTime(e.target.value)}
+                    className="w-full h-10 px-3.5 pr-9 border border-slate-200 rounded-xl outline-none focus:border-[#30277a] text-xs font-semibold text-slate-800"
+                  />
+                  <Clock className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold text-slate-800 block">Reception Hours</label>
+                <select
                   value={receptionHours}
                   onChange={(e) => setReceptionHours(e.target.value)}
-                  className="h-12 px-4 border border-slate-200 rounded-lg text-slate-900 text-sm outline-none"
-                  placeholder="24 Hours"
-                />
-              </label>
+                  className="w-full h-10 px-3.5 border border-slate-200 rounded-xl outline-none focus:border-[#30277a] text-xs font-semibold text-slate-800 bg-white"
+                >
+                  <option value="24 Hours">24 Hours</option>
+                  <option value="08:00 - 22:00">08:00 - 22:00</option>
+                  <option value="09:00 - 18:00">09:00 - 18:00</option>
+                </select>
+              </div>
             </div>
-          </FormSection>
+          </section>
 
-          <FormSection title="Images">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <ImageUploadBox
-                label="Cover Image"
-                hint="Card thumbnail shown in listings (recommended 600×400)"
-                value={coverImage}
-                onChange={setCoverImage}
-                disabled={submitting}
-              />
-              <ImageUploadBox
-                label="Hero Banner"
-                hint="Full-width banner for the park detail page (recommended 1400×600)"
-                value={heroBanner}
-                onChange={setHeroBanner}
-                disabled={submitting}
-              />
-            </div>
-          </FormSection>
+          {/* Section 4: Gallery */}
+          <section className="p-6 border border-slate-200/80 rounded-2xl bg-white shadow-2xs space-y-4">
+            <h2 className="text-base font-bold text-slate-900 tracking-tight">Gallery</h2>
+            <MultipleImageUploadBox
+              values={gallery}
+              onChange={handleGalleryChange}
+              disabled={submitting}
+            />
+          </section>
 
-          <FormSection title="Location">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <label className="grid gap-2 text-slate-900 text-sm font-semibold">
+          {/* Section 5: Location */}
+          <section className="p-6 border border-slate-200/80 rounded-2xl bg-white shadow-2xs space-y-4">
+            <h2 className="text-base font-bold text-slate-900 tracking-tight">Location</h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+              <label className="grid gap-1.5 font-semibold text-slate-800">
                 <span>Country</span>
                 <input
                   value={country}
                   onChange={(e) => setCountry(e.target.value)}
-                  className="h-12 px-4 border border-slate-200 rounded-lg text-slate-900 text-sm outline-none"
                   placeholder="Netherlands"
+                  className="h-10 px-3.5 border border-slate-200 rounded-xl outline-none focus:border-[#30277a] bg-white text-slate-800 text-xs"
                 />
               </label>
-              <label className="grid gap-2 text-slate-900 text-sm font-semibold">
+
+              <label className="grid gap-1.5 font-semibold text-slate-800">
                 <span>City</span>
                 <input
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
-                  className="h-12 px-4 border border-slate-200 rounded-lg text-slate-900 text-sm outline-none"
-                  placeholder="Utrecht"
+                  placeholder="e.g. Utrecht"
+                  className="h-10 px-3.5 border border-slate-200 rounded-xl outline-none focus:border-[#30277a] bg-white text-slate-800 text-xs"
                 />
               </label>
-              <label className="grid gap-2 text-slate-900 text-sm font-semibold">
+
+              <label className="grid gap-1.5 font-semibold text-slate-800">
                 <span>Region</span>
                 <input
                   value={region}
                   onChange={(e) => setRegion(e.target.value)}
-                  className="h-12 px-4 border border-slate-200 rounded-lg text-slate-900 text-sm outline-none"
-                  placeholder="Veluwe"
+                  placeholder="e.g. Veluwe"
+                  className="h-10 px-3.5 border border-slate-200 rounded-xl outline-none focus:border-[#30277a] bg-white text-slate-800 text-xs"
                 />
               </label>
-              <label className="grid gap-2 text-slate-900 text-sm font-semibold">
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+              <label className="sm:col-span-2 grid gap-1.5 font-semibold text-slate-800">
+                <span>Google Map Location</span>
+                <input
+                  value={googleMapLocation}
+                  onChange={(e) => setGoogleMapLocation(e.target.value)}
+                  placeholder="A one-line summary shown on cards"
+                  className="h-10 px-3.5 border border-slate-200 rounded-xl outline-none focus:border-[#30277a] bg-white text-slate-800 text-xs"
+                />
+              </label>
+
+              <label className="grid gap-1.5 font-semibold text-slate-800">
                 <span>Postal Code</span>
                 <input
                   value={postalCode}
                   onChange={(e) => setPostalCode(e.target.value)}
-                  className="h-12 px-4 border border-slate-200 rounded-lg text-slate-900 text-sm outline-none"
-                  placeholder="3811 AB"
+                  placeholder="e.g. 3511 AR"
+                  className="h-10 px-3.5 border border-slate-200 rounded-xl outline-none focus:border-[#30277a] bg-white text-slate-800 text-xs"
                 />
               </label>
             </div>
-          </FormSection>
 
-          {/* Action Buttons */}
-          <div className="flex justify-end gap-3 pt-4">
-            <Link
-              href="/dashboard/properties"
-              className="h-11 px-6 rounded-md font-semibold border border-slate-300 bg-white text-slate-700 flex items-center justify-center hover:bg-slate-50 transition-colors"
-            >
-              Cancel
-            </Link>
-            <button
-              type="button"
-              onClick={() => handleSubmit(true)}
-              disabled={submitting}
-              className="h-11 px-6 rounded-md font-semibold border border-[#3b338c] bg-white text-[#3b338c] hover:bg-violet-50 transition-colors disabled:opacity-50"
-            >
-              Save Draft
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSubmit(false)}
-              disabled={submitting}
-              className="h-11 px-6 rounded-md font-semibold bg-[#3b338c] text-white hover:bg-[#312975] transition-colors disabled:opacity-50"
-            >
-              {submitting ? "Publishing..." : "Publish Park"}
-            </button>
+            {/* Interactive Map Visual */}
+            <GoogleMapPreview
+              locationName={name || title || "Nordic Pines Retreat"}
+              city={city}
+              country={country}
+            />
+          </section>
+
+          {/* Fixed Footer Bar */}
+          <div className="fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-slate-200 px-6 py-3.5 shadow-lg">
+            <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                <Sparkles className="w-4 h-4 text-[#30277a]" />
+                <span>{name || title || "Nordic Pines Review"} · <span className="text-emerald-600 font-bold">Ready to publish</span></span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => router.push("/dashboard/properties")}
+                  className="h-10 px-5 rounded-xl font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 text-xs transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSubmit(true)}
+                  disabled={submitting}
+                  className="h-10 px-5 rounded-xl font-semibold border border-[#30277a] text-[#30277a] bg-white hover:bg-[#30277a]/5 text-xs transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  Save Draft
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="h-10 px-6 rounded-xl font-semibold bg-[#30277a] text-white hover:bg-[#231b5c] text-xs transition-all shadow-xs cursor-pointer disabled:opacity-50"
+                >
+                  {submitting ? "Publishing..." : "Publish Park"}
+                </button>
+              </div>
+            </div>
           </div>
-        </main>
-      </div>
-    </div>
-  );
-}
-
-function FormSection({ title, children }: Readonly<{ title: string; children: React.ReactNode }>) {
-  return (
-    <section className="p-6 border border-slate-200 rounded-xl bg-white shadow-xs grid gap-5">
-      <h2 className="text-xl text-slate-900 font-bold">{title}</h2>
-      {children}
-    </section>
+        </form>
+      </main>
+    </DashboardShell>
   );
 }

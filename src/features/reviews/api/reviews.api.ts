@@ -13,6 +13,11 @@ export async function fetchReviews(query?: QueryReviewDto): Promise<PaginatedRev
   };
 }
 
+export async function updateReview(id: string, data: Partial<Review>): Promise<Review> {
+  const response = await api.patch(`/reviews/${id}`, data);
+  return unwrapData<Review>(response.data);
+}
+
 export async function deleteReview(id: string): Promise<{ message: string }> {
   const response = await api.delete(`/reviews/${id}`);
   return unwrapData<{ message: string }>(response.data);

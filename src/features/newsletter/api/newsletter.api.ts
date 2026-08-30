@@ -16,3 +16,8 @@ export async function getNewsletterSubscribers(): Promise<NewsletterSubscriber[]
   }
   return [];
 }
+
+export async function deleteNewsletterSubscriber(id: string): Promise<{ message: string }> {
+  const response = await api.delete(`/newsletter/${id}`);
+  return unwrapData<{ message: string }>(response.data);
+}

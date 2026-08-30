@@ -3,7 +3,14 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, Save, Loader2, Home } from "lucide-react";
+import {
+  ChevronLeft,
+  Clock,
+  Plus,
+  X,
+  Sparkles,
+  Loader2,
+} from "lucide-react";
 import { DashboardShell } from "@/components/shared/DashboardShell";
 import { fetchPropertyById, updateProperty } from "../api/properties.api";
 import {
@@ -13,12 +20,36 @@ import {
 } from "../types/properties.types";
 import { api } from "@/lib/api";
 import { MultipleImageUploadBox, GalleryValues } from "@/components/shared/MultipleImageUploadBox";
-import axios from "axios";
+import { CounterInput } from "@/components/shared/CounterInput";
+import { RichTextArea } from "@/components/shared/RichTextArea";
+import { GoogleMapPreview } from "@/components/shared/GoogleMapPreview";
 
 interface EditPropertyFormProps {
   propertyId: string;
   parkId?: string;
 }
+
+const PROPERTY_TYPES = [
+  { id: "Villa", label: "Villa", icon: "🏡" },
+  { id: "Cabin", label: "Cabin", icon: "🪵" },
+  { id: "Apartment", label: "Apartment", icon: "🏢" },
+  { id: "Suite", label: "Suite", icon: "🏨" },
+  { id: "Lodge", label: "Lodge", icon: "🛖" },
+  { id: "Tiny House", label: "Tiny House", icon: "🏠" },
+];
+
+const DEFAULT_FEATURES = [
+  { id: "Breakfast Included", label: "Breakfast Included", icon: "🥐" },
+  { id: "Fireplace", label: "Fireplace", icon: "🔥" },
+  { id: "Mountain View", label: "Mountain View", icon: "🏔️" },
+  { id: "Wheelchair Accessible", label: "Wheelchair Accessible", icon: "♿" },
+  { id: "Air Conditioning", label: "Air Conditioning", icon: "❄️" },
+  { id: "Pet Friendly", label: "Pet Friendly", icon: "🐶" },
+  { id: "Private Parking", label: "Private Parking", icon: "🚗" },
+  { id: "Lake View", label: "Lake View", icon: "🌊" },
+  { id: "Garden View", label: "Garden View", icon: "🪴" },
+  { id: "Swimming Pool", label: "Swimming Pool", icon: "🏊" },
+];
 
 export function EditPropertyForm({ propertyId, parkId }: EditPropertyFormProps) {
   const router = useRouter();
@@ -27,28 +58,44 @@ export function EditPropertyForm({ propertyId, parkId }: EditPropertyFormProps) 
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const [successMsg, setSuccessMsg] = useState("");
 
-  // Holiday Parks List
-  const [holidayParksList, setHolidayParksList] = useState<
-    { _id: string; title?: string; name?: string; location?: any; badgeLocation?: string }[]
-  >([]);
-
-  // Form State
+  // Basic Info State
   const [title, setTitle] = useState("");
-  const [badge, setBadge] = useState("");
-  const [category, setCategory] = useState<PropertyCategory>("Wellness Villas");
   const [holidayPark, setHolidayPark] = useState(parkId || "");
-  const [selectedParkDetails, setSelectedParkDetails] = useState<any>(null);
-  const [pricePerNight, setPricePerNight] = useState<number>(129);
-  const [guests, setGuests] = useState<number>(4);
-  const [beds, setBeds] = useState<number>(2);
-  const [baths, setBaths] = useState<number>(2);
-  const [size, setSize] = useState("");
-  const [petsAllowed, setPetsAllowed] = useState(true);
-  const [cleaningFee, setCleaningFee] = useState<number>(80);
-  const [taxes, setTaxes] = useState<number>(45);
+  const [propertyCode, setPropertyCode] = useState("NP-2048");
+  const [propertyType, setPropertyType] = useState("Villa");
+  const [shortDescription, setShortDescription] = useState("");
   const [description, setDescription] = useState("");
+  const [badge, setBadge] = useState("FEATURED LODGE");
+  const [category, setCategory] = useState<PropertyCategory>("Wellness Villas");
+
+  // Property Details State (Counters)
+  const [guests, setGuests] = useState<number>(8);
+  const [bedrooms, setBedrooms] = useState<number>(4);
+  const [baths, setBaths] = useState<number>(2);
+  const [beds, setBeds] = useState<number>(5);
+  const [propertySize, setPropertySize] = useState<number>(140);
+  const [floor, setFloor] = useState<number>(2);
+
+  // Property Features State
+  const [featuresList, setFeaturesList] = useState(DEFAULT_FEATURES);
+  const [selectedFeatures, setSelectedFeatures] = useState<string[]>([
+    "Breakfast Included",
+    "Fireplace",
+    "Mountain View",
+    "Air Conditioning",
+    "Private Parking",
+  ]);
+  const [newFeatureName, setNewFeatureName] = useState("");
+  const [showAddFeature, setShowAddFeature] = useState(false);
+
+  // Park Information & Pricing
+  const [pricePerNight, setPricePerNight] = useState<number>(94);
+  const [totalCapacity, setTotalCapacity] = useState<number>(180);
+  const [startingPrice, setStartingPrice] = useState<number>(120);
+  const [checkInTime, setCheckInTime] = useState("15:00");
+  const [checkOutTime, setCheckOutTime] = useState("11:00");
+  const [receptionHours, setReceptionHours] = useState("24 Hours");
 
   // Gallery
   const [gallery, setGallery] = useState<GalleryValues>({
@@ -58,8 +105,16 @@ export function EditPropertyForm({ propertyId, parkId }: EditPropertyFormProps) 
     side3: "",
   });
 
+  // Location
+  const [country, setCountry] = useState("Netherlands");
+  const [city, setCity] = useState("Utrecht");
+  const [region, setRegion] = useState("Veluwe");
+  const [googleMapLocation, setGoogleMapLocation] = useState("");
+  const [postalCode, setPostalCode] = useState("3511 AR");
+
+  // Holiday Parks List
+  const [holidayParksList, setHolidayParksList] = useState<any[]>([]);
   const [status, setStatus] = useState<PropertyStatus>("Active");
-  const [isPopular, setIsPopular] = useState(false);
 
   // Load Property Details & Holiday Parks
   useEffect(() => {
@@ -77,15 +132,15 @@ export function EditPropertyForm({ propertyId, parkId }: EditPropertyFormProps) 
 
         if (!isMounted) return;
 
-        let parksItems: any[] = [];
         if (parksRes.status === "fulfilled") {
           const res = parksRes.value;
+          let items: any[] = [];
           if (res.data && res.data.items) {
-            parksItems = res.data.items;
+            items = res.data.items;
           } else if (Array.isArray(res.data)) {
-            parksItems = res.data;
+            items = res.data;
           }
-          setHolidayParksList(parksItems);
+          setHolidayParksList(items);
         }
 
         if (propertyRes.status === "fulfilled") {
@@ -93,145 +148,159 @@ export function EditPropertyForm({ propertyId, parkId }: EditPropertyFormProps) 
           setTitle(p.title || "");
           setBadge(p.badge || "FEATURED LODGE");
           setCategory(p.category || "Wellness Villas");
+          setShortDescription(p.badge || "Luxury holiday property");
+          setDescription(p.description || "");
+          setPricePerNight(p.pricePerNight || 94);
+          setGuests(p.guests || 8);
+          setBeds(p.beds || 5);
+          setBaths(p.baths || 2);
+          setBedrooms(Math.max(1, Math.floor((p.beds || 5) / 1.2)));
+
+          const parsedSize = parseInt(p.size || "140", 10);
+          if (!isNaN(parsedSize)) setPropertySize(parsedSize);
+
+          if (p.gallery) {
+            setGallery({
+              main: p.gallery.main || "",
+              side1: p.gallery.side1 || "",
+              side2: p.gallery.side2 || "",
+              side3: p.gallery.side3 || "",
+            });
+          }
+
+          if (p.petsAllowed) {
+            setSelectedFeatures((prev) => Array.from(new Set([...prev, "Pet Friendly"])));
+          }
+
+          setStatus(p.status || "Active");
 
           const pParkId =
             typeof p.holidayPark === "object" && p.holidayPark !== null
-              ? p.holidayPark._id
+              ? (p.holidayPark as any)._id
               : p.holidayPark || parkId || "";
           setHolidayPark(pParkId);
 
           if (typeof p.holidayPark === "object" && p.holidayPark !== null) {
-            setSelectedParkDetails(p.holidayPark);
-          } else if (pParkId && parksItems.length > 0) {
-            const matched = parksItems.find((hp) => hp._id === pParkId);
-            if (matched) setSelectedParkDetails(matched);
+            const hp: any = p.holidayPark;
+            if (hp.location) {
+              if (hp.location.country) setCountry(hp.location.country);
+              if (hp.location.city) setCity(hp.location.city);
+              if (hp.location.region) setRegion(hp.location.region);
+              if (hp.location.postalCode) setPostalCode(hp.location.postalCode);
+            }
           }
-
-          setPricePerNight(p.pricePerNight ?? 129);
-          setGuests(p.guests ?? 4);
-          setBeds(p.beds ?? 2);
-          setBaths(p.baths ?? 2);
-          setSize(p.size || "240 m²");
-          setPetsAllowed(p.petsAllowed ?? true);
-          setCleaningFee(p.cleaningFee ?? 80);
-          setTaxes(p.taxes ?? 45);
-          setDescription(p.description || "");
-
-          setGallery({
-            main: p.gallery?.main || "",
-            side1: p.gallery?.side1 || "",
-            side2: p.gallery?.side2 || "",
-            side3: p.gallery?.side3 || "",
-          });
-
-          setStatus(p.status || "Active");
-          setIsPopular(p.isPopular ?? false);
         } else {
-          const err = propertyRes.reason;
-          if (axios.isAxiosError(err) && err.response?.status === 404) {
-            setErrorMsg("Property not found. It may have been deleted.");
-          } else {
-            setErrorMsg("Failed to load property details. Please try again.");
-          }
+          setErrorMsg("Failed to load property data.");
         }
-      } catch (err: unknown) {
-        if (isMounted) setErrorMsg("An unexpected error occurred while loading data.");
+      } catch (err) {
+        console.error("Error loading property edit data:", err);
+        setErrorMsg("Failed to load property details.");
       } finally {
         if (isMounted) setIsLoading(false);
       }
     }
 
-    void loadData();
-
-    return () => {
-      isMounted = false;
-    };
+    if (propertyId) loadData();
+    return () => { isMounted = false; };
   }, [propertyId, parkId]);
 
   const handleGalleryChange = (key: keyof GalleryValues, url: string) => {
     setGallery((prev) => ({ ...prev, [key]: url }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const toggleFeature = (featureId: string) => {
+    setSelectedFeatures((prev) =>
+      prev.includes(featureId)
+        ? prev.filter((f) => f !== featureId)
+        : [...prev, featureId]
+    );
+  };
+
+  const handleAddCustomFeature = () => {
+    if (!newFeatureName.trim()) return;
+    const name = newFeatureName.trim();
+    if (!featuresList.some((f) => f.id === name)) {
+      const newFeature = { id: name, label: name, icon: "✨" };
+      setFeaturesList((prev) => [...prev, newFeature]);
+      setSelectedFeatures((prev) => [...prev, name]);
+    }
+    setNewFeatureName("");
+    setShowAddFeature(false);
+  };
+
+  const handleSubmit = async (isDraft = false) => {
     setErrorMsg("");
-    setSuccessMsg("");
 
     if (!title.trim()) {
-      setErrorMsg("Property Title is required.");
-      return;
-    }
-
-    if (Number(pricePerNight) < 0) {
-      setErrorMsg("Price per night must be a non-negative number.");
+      setErrorMsg("Property Name is required.");
       return;
     }
 
     try {
       setIsSubmitting(true);
-
       const payload: UpdatePropertyDto = {
         title: title.trim(),
-        badge: badge.trim(),
+        badge: badge.trim() || propertyType,
         category,
         holidayPark: holidayPark || undefined,
-        description: description.trim(),
+        description: description.trim() || shortDescription.trim(),
         pricePerNight: Number(pricePerNight),
         guests: Number(guests),
         beds: Number(beds),
         baths: Number(baths),
-        size: size.trim(),
-        petsAllowed,
-        cleaningFee: Number(cleaningFee),
-        taxes: Number(taxes),
+        size: `${propertySize} m²`,
+        petsAllowed: selectedFeatures.includes("Pet Friendly"),
+        cleaningFee: 80,
+        taxes: 45,
         gallery: {
           main: gallery.main.trim(),
           side1: gallery.side1.trim(),
           side2: gallery.side2.trim(),
           side3: gallery.side3.trim(),
         },
-        status,
-        isPopular,
+        status: isDraft ? ("Draft" as PropertyStatus) : status,
+        isPopular: true,
       };
 
       await updateProperty(propertyId, payload);
-      setSuccessMsg("Property updated successfully!");
-
-      const targetParkId = parkId || holidayPark;
-      setTimeout(() => {
-        if (targetParkId) {
-          router.push(`/dashboard/holiday-parks/${targetParkId}/properties`);
-        } else {
-          router.push("/dashboard/holiday-parks");
-        }
-      }, 600);
-    } catch (err: unknown) {
-      console.error("Failed to update property:", err);
-      if (axios.isAxiosError(err)) {
-        const msg = err.response?.data?.message;
-        setErrorMsg(typeof msg === "string" ? msg : "Failed to update property.");
+      if (holidayPark) {
+        router.push(`/dashboard/holiday-parks/${holidayPark}/properties`);
       } else {
-        setErrorMsg("Failed to update property. Please try again.");
+        router.push("/dashboard/properties");
       }
+    } catch (err: any) {
+      console.error("Failed to update property:", err);
+      setErrorMsg(err?.response?.data?.message || "Failed to update property. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const targetParkId = parkId || holidayPark;
-  const backHref = targetParkId ? `/dashboard/holiday-parks/${targetParkId}/properties` : "/dashboard/holiday-parks";
+  const backHref = holidayPark ? `/dashboard/holiday-parks/${holidayPark}/properties` : "/dashboard/properties";
+
+  if (isLoading) {
+    return (
+      <DashboardShell active="Properties" title="Loading Property..." subtitle="Fetching property details.">
+        <div className="py-20 flex flex-col items-center justify-center text-slate-500 gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-[#30277a]" />
+          <span className="text-xs font-semibold">Loading Property Specifications...</span>
+        </div>
+      </DashboardShell>
+    );
+  }
 
   return (
     <DashboardShell
-      active="Holiday Parks"
-      title="Edit Property"
-      subtitle={`Update listing details for property ID: ${propertyId}`}
+      active="Properties"
+      title="Welcome back 👋"
+      subtitle="Manage your luxury holiday destinations from one beautiful workspace."
     >
-      <main className="p-5 md:p-8 font-sans grid gap-6 max-w-5xl mx-auto">
+      <main className="p-4 md:p-8 font-sans grid gap-6 max-w-6xl mx-auto pb-24">
+        {/* Back Link */}
         <div className="flex items-center justify-between">
           <Link
             href={backHref}
-            className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-[#3b338c] transition-colors"
+            className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-[#30277a] transition-colors"
           >
             <ChevronLeft size={16} />
             Back to Properties List
@@ -239,284 +308,409 @@ export function EditPropertyForm({ propertyId, parkId }: EditPropertyFormProps) 
         </div>
 
         {errorMsg && (
-          <div
-            role="alert"
-            className="p-4 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-lg"
-          >
+          <div className="p-4 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-xl">
             {errorMsg}
           </div>
         )}
 
-        {successMsg && (
-          <div
-            role="status"
-            className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold rounded-lg"
-          >
-            {successMsg}
-          </div>
-        )}
+        <form onSubmit={(e) => { e.preventDefault(); handleSubmit(false); }} className="grid gap-6">
+          {/* Section 1: Basic Information */}
+          <section className="p-6 border border-slate-200/80 rounded-2xl bg-white shadow-2xs space-y-5">
+            <h2 className="text-base font-bold text-slate-900 tracking-tight">Basic Information</h2>
 
-        {isLoading ? (
-          <div className="p-12 text-center border border-slate-200 rounded-lg bg-white shadow-2xs">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto text-[#3b338c]" />
-            <p className="mt-3 text-sm font-medium text-slate-600">Loading property details...</p>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="grid gap-6">
-            {/* Section 1: Basic Information */}
-            <section className="p-6 border border-slate-200 rounded-lg bg-white shadow-2xs space-y-4">
-              <h2 className="text-lg font-bold text-slate-900">Basic Property Info</h2>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                <label className="grid gap-1.5 font-semibold text-slate-700">
-                  <span>Property Title *</span>
-                  <input
-                    required
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="e.g. Luxury Lake Villa"
-                    className="h-10 px-3 border border-slate-200 rounded outline-none focus:border-[#3b338c]"
-                  />
-                </label>
-
-                <label className="grid gap-1.5 font-semibold text-slate-700">
-                  <span>Badge / Tag</span>
-                  <input
-                    value={badge}
-                    onChange={(e) => setBadge(e.target.value)}
-                    placeholder="e.g. FEATURED LODGE"
-                    className="h-10 px-3 border border-slate-200 rounded outline-none focus:border-[#3b338c]"
-                  />
-                </label>
-
-                <label className="grid gap-1.5 font-semibold text-slate-700">
-                  <span>Category</span>
-                  <select
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value as PropertyCategory)}
-                    className="h-10 px-3 border border-slate-200 rounded outline-none focus:border-[#3b338c]"
-                  >
-                    <option value="Wellness Villas">Wellness Villas</option>
-                    <option value="Lakefront">Lakefront</option>
-                    <option value="Cabins & Lodges">Cabins & Lodges</option>
-                  </select>
-                </label>
-
-                <label className="grid gap-1.5 font-semibold text-slate-700">
-                  <span>Parent Holiday Park *</span>
-                  <select
-                    value={holidayPark}
-                    disabled={Boolean(parkId)}
-                    onChange={(e) => setHolidayPark(e.target.value)}
-                    className="h-10 px-3 border border-slate-200 rounded outline-none focus:border-[#3b338c] bg-slate-50 disabled:opacity-80 font-bold text-[#3b338c]"
-                  >
-                    <option value="">-- Select Holiday Park --</option>
-                    {holidayParksList.map((hp) => (
-                      <option key={hp._id} value={hp._id}>
-                        {hp.title || hp.name || "Holiday Park"}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-
-              {/* Geographic Location Inheritance Banner */}
-              <div className="p-3.5 bg-violet-50/70 border border-violet-100 rounded-lg flex items-center justify-between text-xs text-slate-700">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-[#3b338c]">📍 Geographic Location:</span>
-                  <span>
-                    {selectedParkDetails?.location?.city
-                      ? `${selectedParkDetails.location.city}, ${selectedParkDetails.location.country || ""}`
-                      : selectedParkDetails?.badgeLocation || "Inherited automatically from parent Holiday Park"}
-                  </span>
-                </div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-200">
-                  Auto-Inherited
-                </span>
-              </div>
-
-              <label className="grid gap-1.5 font-semibold text-slate-700 text-xs">
-                <span>Full Description</span>
-                <textarea
-                  rows={4}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Describe the architectural design, surroundings, and experience..."
-                  className="p-3 border border-slate-200 rounded outline-none focus:border-[#3b338c]"
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+              <label className="grid gap-1.5 font-semibold text-slate-800">
+                <span>Property Name *</span>
+                <input
+                  required
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Nordic Pines Retreat"
+                  className="h-10 px-3.5 border border-slate-200 rounded-xl outline-none focus:border-[#30277a] bg-white text-slate-800 text-xs"
                 />
               </label>
-            </section>
 
-            {/* Section 2: Pricing & Capacity */}
-            <section className="p-6 border border-slate-200 rounded-lg bg-white shadow-2xs space-y-4">
-              <h2 className="text-lg font-bold text-slate-900">Pricing & Capacity Specifications</h2>
+              <label className="grid gap-1.5 font-semibold text-slate-800">
+                <span>Holiday Park</span>
+                <select
+                  value={holidayPark}
+                  onChange={(e) => setHolidayPark(e.target.value)}
+                  className="h-10 px-3.5 border border-slate-200 rounded-xl outline-none focus:border-[#30277a] bg-white text-slate-800 text-xs font-medium"
+                >
+                  <option value="">Northshore Collection</option>
+                  {holidayParksList.map((hp) => (
+                    <option key={hp._id} value={hp._id}>
+                      {hp.title || hp.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-                <label className="grid gap-1.5 font-semibold text-slate-700">
-                  <span>Price Per Night (€) *</span>
-                  <input
-                    type="number"
-                    required
-                    min="0"
-                    value={pricePerNight}
-                    onChange={(e) => setPricePerNight(Number(e.target.value))}
-                    className="h-10 px-3 border border-slate-200 rounded outline-none focus:border-[#3b338c]"
-                  />
-                </label>
+              <label className="grid gap-1.5 font-semibold text-slate-800">
+                <span>Property Code</span>
+                <input
+                  value={propertyCode}
+                  onChange={(e) => setPropertyCode(e.target.value)}
+                  placeholder="NP-2048"
+                  className="h-10 px-3.5 border border-slate-200 rounded-xl outline-none focus:border-[#30277a] bg-white text-slate-800 text-xs uppercase tracking-wider font-semibold"
+                />
+              </label>
+            </div>
 
-                <label className="grid gap-1.5 font-semibold text-slate-700">
-                  <span>Max Guests</span>
-                  <input
-                    type="number"
-                    min="1"
-                    value={guests}
-                    onChange={(e) => setGuests(Number(e.target.value))}
-                    className="h-10 px-3 border border-slate-200 rounded outline-none focus:border-[#3b338c]"
-                  />
-                </label>
-
-                <label className="grid gap-1.5 font-semibold text-slate-700">
-                  <span>Beds</span>
-                  <input
-                    type="number"
-                    min="1"
-                    value={beds}
-                    onChange={(e) => setBeds(Number(e.target.value))}
-                    className="h-10 px-3 border border-slate-200 rounded outline-none focus:border-[#3b338c]"
-                  />
-                </label>
-
-                <label className="grid gap-1.5 font-semibold text-slate-700">
-                  <span>Baths</span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.5"
-                    value={baths}
-                    onChange={(e) => setBaths(Number(e.target.value))}
-                    className="h-10 px-3 border border-slate-200 rounded outline-none focus:border-[#3b338c]"
-                  />
-                </label>
-
-                <label className="grid gap-1.5 font-semibold text-slate-700">
-                  <span>Property Size</span>
-                  <input
-                    value={size}
-                    onChange={(e) => setSize(e.target.value)}
-                    placeholder="e.g. 240 m²"
-                    className="h-10 px-3 border border-slate-200 rounded outline-none focus:border-[#3b338c]"
-                  />
-                </label>
-
-                <label className="grid gap-1.5 font-semibold text-slate-700">
-                  <span>Cleaning Fee (€)</span>
-                  <input
-                    type="number"
-                    min="0"
-                    value={cleaningFee}
-                    onChange={(e) => setCleaningFee(Number(e.target.value))}
-                    className="h-10 px-3 border border-slate-200 rounded outline-none focus:border-[#3b338c]"
-                  />
-                </label>
-
-                <label className="grid gap-1.5 font-semibold text-slate-700">
-                  <span>Taxes (€)</span>
-                  <input
-                    type="number"
-                    min="0"
-                    value={taxes}
-                    onChange={(e) => setTaxes(Number(e.target.value))}
-                    className="h-10 px-3 border border-slate-200 rounded outline-none focus:border-[#3b338c]"
-                  />
-                </label>
-
-                <div className="flex items-center gap-2 pt-6">
-                  <input
-                    type="checkbox"
-                    id="pets-allowed-edit"
-                    checked={petsAllowed}
-                    onChange={(e) => setPetsAllowed(e.target.checked)}
-                    className="size-4 rounded accent-[#3b338c]"
-                  />
-                  <label
-                    htmlFor="pets-allowed-edit"
-                    className="font-semibold text-slate-700 cursor-pointer"
-                  >
-                    Pets Allowed
-                  </label>
-                </div>
+            {/* Property Type Selection */}
+            <div className="space-y-2">
+              <label className="text-[11px] font-semibold text-slate-800 block">Property Type</label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+                {PROPERTY_TYPES.map((type) => {
+                  const isSelected = propertyType === type.id;
+                  return (
+                    <button
+                      type="button"
+                      key={type.id}
+                      onClick={() => {
+                        setPropertyType(type.id);
+                        if (type.id === "Villa") setCategory("Wellness Villas");
+                        else if (type.id === "Cabin") setCategory("Cabins & Lodges");
+                        else setCategory("Lakefront");
+                      }}
+                      className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
+                        isSelected
+                          ? "border-[#30277a] bg-[#30277a]/5 text-[#30277a] shadow-2xs"
+                          : "border-slate-200 bg-slate-50/50 text-slate-600 hover:bg-slate-100"
+                      }`}
+                    >
+                      <span className="text-base">{type.icon}</span>
+                      <span>{type.label}</span>
+                    </button>
+                  );
+                })}
               </div>
-            </section>
+            </div>
 
-            {/* Section 3: Gallery Media */}
-            <section className="p-6 border border-slate-200 rounded-lg bg-white shadow-2xs space-y-4">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">Gallery Media</h2>
-                <p className="text-xs text-slate-400 mt-1">
-                  Upload or update URLs for the main photo and up to 3 side images. Supports JPEG,
-                  PNG, WebP (max 5 MB each).
-                </p>
-              </div>
-              <MultipleImageUploadBox
-                values={gallery}
-                onChange={handleGalleryChange}
-                disabled={isSubmitting}
+            {/* Short Description */}
+            <label className="grid gap-1.5 font-semibold text-slate-800 text-xs">
+              <span>Short Description</span>
+              <input
+                value={shortDescription}
+                onChange={(e) => setShortDescription(e.target.value)}
+                placeholder="A one-line summary shown on cards"
+                className="h-10 px-3.5 border border-slate-200 rounded-xl outline-none focus:border-[#30277a] bg-white text-slate-800 text-xs"
               />
-            </section>
+            </label>
 
-            {/* Section 4: Publishing Settings */}
-            <section className="p-6 border border-slate-200 rounded-lg bg-white shadow-2xs flex flex-wrap items-center justify-between gap-4 text-xs">
-              <div className="flex items-center gap-6">
-                <label className="grid gap-1 font-semibold text-slate-700">
-                  <span>Publication Status</span>
-                  <select
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value as PropertyStatus)}
-                    className="h-10 px-3 border border-slate-200 rounded outline-none focus:border-[#3b338c]"
-                  >
-                    <option value="Active">Active (Live)</option>
-                    <option value="Draft">Draft</option>
-                    <option value="Archived">Archived</option>
-                  </select>
-                </label>
+            {/* Full Description */}
+            <RichTextArea
+              label="Full Description"
+              value={description}
+              onChange={setDescription}
+              placeholder="Describe the atmosphere, surroundings and experience..."
+            />
+          </section>
 
-                <div className="flex items-center gap-2 pt-4">
+          {/* Section 2: Property Details */}
+          <section className="p-6 border border-slate-200/80 rounded-2xl bg-white shadow-2xs space-y-4">
+            <h2 className="text-base font-bold text-slate-900 tracking-tight">Property Details</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+              <CounterInput
+                label="Maximum Guests"
+                value={guests}
+                onChange={setGuests}
+                min={1}
+                max={30}
+              />
+              <CounterInput
+                label="Bedrooms"
+                value={bedrooms}
+                onChange={setBedrooms}
+                min={1}
+                max={15}
+              />
+              <CounterInput
+                label="Bathrooms"
+                value={baths}
+                onChange={setBaths}
+                min={1}
+                max={10}
+              />
+              <CounterInput
+                label="Beds"
+                value={beds}
+                onChange={setBeds}
+                min={1}
+                max={20}
+              />
+              <CounterInput
+                label="Property Size (m²)"
+                value={propertySize}
+                onChange={setPropertySize}
+                min={10}
+                max={1000}
+                step={5}
+              />
+              <CounterInput
+                label="Floor"
+                value={floor}
+                onChange={setFloor}
+                min={1}
+                max={50}
+              />
+            </div>
+          </section>
+
+          {/* Section 3: Property Features */}
+          <section className="p-6 border border-slate-200/80 rounded-2xl bg-white shadow-2xs space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-bold text-slate-900 tracking-tight">Property Features</h2>
+              {showAddFeature && (
+                <div className="flex items-center gap-2">
                   <input
-                    type="checkbox"
-                    id="popular-pub-edit"
-                    checked={isPopular}
-                    onChange={(e) => setIsPopular(e.target.checked)}
-                    className="size-4 rounded accent-[#3b338c]"
+                    type="text"
+                    value={newFeatureName}
+                    onChange={(e) => setNewFeatureName(e.target.value)}
+                    placeholder="Feature name..."
+                    className="h-8 px-2.5 text-xs border border-slate-200 rounded-lg outline-none focus:border-[#30277a]"
                   />
-                  <label
-                    htmlFor="popular-pub-edit"
-                    className="font-semibold text-slate-700 cursor-pointer"
+                  <button
+                    type="button"
+                    onClick={handleAddCustomFeature}
+                    className="h-8 px-3 bg-[#30277a] text-white text-xs font-semibold rounded-lg hover:bg-[#251e60]"
                   >
-                    Feature on Homepage Popular Grid
-                  </label>
+                    Add
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddFeature(false)}
+                    className="text-slate-400 hover:text-slate-600 p-1"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
-              </div>
+              )}
+            </div>
 
-              <div className="flex gap-3">
+            <div className="flex flex-wrap items-center gap-2.5">
+              {featuresList.map((feat) => {
+                const isSelected = selectedFeatures.includes(feat.id);
+                return (
+                  <button
+                    key={feat.id}
+                    type="button"
+                    onClick={() => toggleFeature(feat.id)}
+                    className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-semibold transition-all cursor-pointer select-none ${
+                      isSelected
+                        ? "border-[#30277a] bg-[#30277a]/5 text-[#30277a]"
+                        : "border-slate-200 bg-slate-50/50 text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    <span>{feat.icon}</span>
+                    <span>{feat.label}</span>
+                    <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center text-[9px] ${
+                      isSelected ? "border-[#30277a] bg-[#30277a] text-white" : "border-slate-300 bg-white"
+                    }`}>
+                      {isSelected && "✓"}
+                    </span>
+                  </button>
+                );
+              })}
+
+              {!showAddFeature && (
                 <button
                   type="button"
-                  onClick={() => router.push("/dashboard/properties")}
-                  className="h-11 px-6 rounded font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors"
+                  onClick={() => setShowAddFeature(true)}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-dashed border-[#30277a] bg-[#30277a]/5 text-[#30277a] text-xs font-bold hover:bg-[#30277a]/10 transition-colors cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>New Add</span>
+                </button>
+              )}
+            </div>
+          </section>
+
+          {/* Section 4: Park Information / Pricing */}
+          <section className="p-6 border border-slate-200/80 rounded-2xl bg-white shadow-2xs space-y-4">
+            <h2 className="text-base font-bold text-slate-900 tracking-tight">Park Information & Pricing</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <CounterInput
+                label="Price Per Night (€)"
+                value={pricePerNight}
+                onChange={setPricePerNight}
+                min={10}
+                max={5000}
+                step={5}
+              />
+              <CounterInput
+                label="Total Capacity"
+                value={totalCapacity}
+                onChange={setTotalCapacity}
+                min={10}
+                max={1000}
+                step={10}
+                unit="Guests"
+              />
+              <CounterInput
+                label="Starting Price (Per Night)"
+                value={startingPrice}
+                onChange={setStartingPrice}
+                min={10}
+                max={2000}
+                step={5}
+                unit="€"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold text-slate-800 block">Check-in Time</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={checkInTime}
+                    onChange={(e) => setCheckInTime(e.target.value)}
+                    className="w-full h-10 px-3.5 pr-9 border border-slate-200 rounded-xl outline-none focus:border-[#30277a] text-xs font-semibold text-slate-800"
+                  />
+                  <Clock className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold text-slate-800 block">Check-out Time</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={checkOutTime}
+                    onChange={(e) => setCheckOutTime(e.target.value)}
+                    className="w-full h-10 px-3.5 pr-9 border border-slate-200 rounded-xl outline-none focus:border-[#30277a] text-xs font-semibold text-slate-800"
+                  />
+                  <Clock className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold text-slate-800 block">Reception Hours</label>
+                <select
+                  value={receptionHours}
+                  onChange={(e) => setReceptionHours(e.target.value)}
+                  className="w-full h-10 px-3.5 border border-slate-200 rounded-xl outline-none focus:border-[#30277a] text-xs font-semibold text-slate-800 bg-white"
+                >
+                  <option value="24 Hours">24 Hours</option>
+                  <option value="08:00 - 22:00">08:00 - 22:00</option>
+                  <option value="09:00 - 18:00">09:00 - 18:00</option>
+                </select>
+              </div>
+            </div>
+          </section>
+
+          {/* Section 5: Gallery */}
+          <section className="p-6 border border-slate-200/80 rounded-2xl bg-white shadow-2xs space-y-4">
+            <h2 className="text-base font-bold text-slate-900 tracking-tight">Gallery</h2>
+            <MultipleImageUploadBox
+              values={gallery}
+              onChange={handleGalleryChange}
+              disabled={isSubmitting}
+            />
+          </section>
+
+          {/* Section 6: Location */}
+          <section className="p-6 border border-slate-200/80 rounded-2xl bg-white shadow-2xs space-y-4">
+            <h2 className="text-base font-bold text-slate-900 tracking-tight">Location</h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+              <label className="grid gap-1.5 font-semibold text-slate-800">
+                <span>Country</span>
+                <input
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                  placeholder="Netherlands"
+                  className="h-10 px-3.5 border border-slate-200 rounded-xl outline-none focus:border-[#30277a] bg-white text-slate-800 text-xs"
+                />
+              </label>
+
+              <label className="grid gap-1.5 font-semibold text-slate-800">
+                <span>City</span>
+                <input
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  placeholder="e.g. Utrecht"
+                  className="h-10 px-3.5 border border-slate-200 rounded-xl outline-none focus:border-[#30277a] bg-white text-slate-800 text-xs"
+                />
+              </label>
+
+              <label className="grid gap-1.5 font-semibold text-slate-800">
+                <span>Region</span>
+                <input
+                  value={region}
+                  onChange={(e) => setRegion(e.target.value)}
+                  placeholder="e.g. Veluwe"
+                  className="h-10 px-3.5 border border-slate-200 rounded-xl outline-none focus:border-[#30277a] bg-white text-slate-800 text-xs"
+                />
+              </label>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+              <label className="sm:col-span-2 grid gap-1.5 font-semibold text-slate-800">
+                <span>Google Map Location</span>
+                <input
+                  value={googleMapLocation}
+                  onChange={(e) => setGoogleMapLocation(e.target.value)}
+                  placeholder="A one-line summary shown on cards"
+                  className="h-10 px-3.5 border border-slate-200 rounded-xl outline-none focus:border-[#30277a] bg-white text-slate-800 text-xs"
+                />
+              </label>
+
+              <label className="grid gap-1.5 font-semibold text-slate-800">
+                <span>Postal Code</span>
+                <input
+                  value={postalCode}
+                  onChange={(e) => setPostalCode(e.target.value)}
+                  placeholder="e.g. 3511 AR"
+                  className="h-10 px-3.5 border border-slate-200 rounded-xl outline-none focus:border-[#30277a] bg-white text-slate-800 text-xs"
+                />
+              </label>
+            </div>
+
+            {/* Interactive Map Visual */}
+            <GoogleMapPreview
+              locationName={title || "Nordic Pines Retreat"}
+              city={city}
+              country={country}
+            />
+          </section>
+
+          {/* Fixed Footer Bar */}
+          <div className="fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-slate-200 px-6 py-3.5 shadow-lg">
+            <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                <Sparkles className="w-4 h-4 text-[#30277a]" />
+                <span>{title || "Nordic Pines Review"} · <span className="text-emerald-600 font-bold">Ready to publish</span></span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => router.push(backHref)}
+                  className="h-10 px-5 rounded-xl font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 text-xs transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
+                  type="button"
+                  onClick={() => handleSubmit(true)}
+                  disabled={isSubmitting}
+                  className="h-10 px-5 rounded-xl font-semibold border border-[#30277a] text-[#30277a] bg-white hover:bg-[#30277a]/5 text-xs transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  Save Draft
+                </button>
+                <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="h-11 px-6 rounded font-semibold bg-[#3b338c] text-white hover:bg-[#2f296d] flex items-center gap-2 disabled:opacity-50 transition-colors"
+                  className="h-10 px-6 rounded-xl font-semibold bg-[#30277a] text-white hover:bg-[#231b5c] text-xs transition-all shadow-xs cursor-pointer disabled:opacity-50"
                 >
-                  <Save size={18} />
-                  {isSubmitting ? "Updating..." : "Save Changes"}
+                  {isSubmitting ? "Saving..." : "Save Property"}
                 </button>
               </div>
-            </section>
-          </form>
-        )}
+            </div>
+          </div>
+        </form>
       </main>
     </DashboardShell>
   );

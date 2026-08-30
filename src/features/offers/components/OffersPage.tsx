@@ -53,6 +53,7 @@ export function OffersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [scopeFilter, setScopeFilter] = useState("All");
+  const [placementFilter, setPlacementFilter] = useState("All");
   const [typeFilter, setTypeFilter] = useState("All");
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
@@ -69,6 +70,7 @@ export function OffersPage() {
         search: searchTerm || undefined,
         status: statusFilter !== "All" ? statusFilter : undefined,
         scope: scopeFilter !== "All" ? (scopeFilter as any) : undefined,
+        displayPlacement: placementFilter !== "All" ? (placementFilter as any) : undefined,
         offerType: typeFilter !== "All" ? (typeFilter as any) : undefined,
       });
 
@@ -88,7 +90,7 @@ export function OffersPage() {
       loadOffers();
     }, 300);
     return () => clearTimeout(timer);
-  }, [searchTerm, statusFilter, scopeFilter, typeFilter, page]);
+  }, [searchTerm, statusFilter, scopeFilter, placementFilter, typeFilter, page]);
 
   const handleDeleteConfirm = async () => {
     if (!pendingDelete) return;
@@ -243,7 +245,7 @@ export function OffersPage() {
 
         {/* Filter & Actions Bar */}
         <section className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="grid flex-1 gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid flex-1 gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
             
             {/* Search Input */}
             <label className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-slate-400 focus-within:border-[#3b338c] focus-within:ring-2 focus-within:ring-[#3b338c]/10 transition-all">
@@ -283,6 +285,26 @@ export function OffersPage() {
                 <option value="Draft">Draft</option>
                 <option value="Expired">Expired</option>
                 <option value="Inactive">Inactive</option>
+              </select>
+              <ChevronDown
+                size={14}
+                className="absolute right-3 top-3.5 text-slate-400 pointer-events-none"
+              />
+            </div>
+
+            {/* Website Placement Filter */}
+            <div className="relative">
+              <select
+                value={placementFilter}
+                onChange={(e) => {
+                  setPlacementFilter(e.target.value);
+                  setPage(1);
+                }}
+                className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-semibold text-slate-700 outline-none cursor-pointer pr-9 focus:border-[#3b338c]"
+              >
+                <option value="All">All Website Sections</option>
+                <option value="featured">Featured Seasonal Offers</option>
+                <option value="special_packages">Special Packages</option>
               </select>
               <ChevronDown
                 size={14}
@@ -425,6 +447,16 @@ export function OffersPage() {
                             </button>
 
                             <div className="flex items-center gap-2 flex-wrap">
+                              {offer.displayPlacement === "special_packages" ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-200 font-bold">
+                                  🎁 Special Package
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-[10px] bg-indigo-50 text-indigo-800 px-1.5 py-0.5 rounded border border-indigo-200 font-bold">
+                                  🌟 Featured
+                                </span>
+                              )}
+
                               {offer.offerCode ? (
                                 <button
                                   type="button"

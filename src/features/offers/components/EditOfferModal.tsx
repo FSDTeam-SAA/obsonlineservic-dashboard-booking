@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { X, Loader2, Search, Tag, Calendar, Percent, Euro, Trees, Home, Globe } from "lucide-react";
-import { Offer, OfferScope, OfferType, OfferStatus } from "../types/offers.types";
+import { Offer, OfferScope, OfferType, OfferStatus, OfferPlacement } from "../types/offers.types";
 import { updateOffer } from "../api/offers.api";
 import { fetchAdminHolidayParks } from "@/features/holiday-parks/api/holiday-parks.api";
 import { fetchAdminProperties } from "@/features/properties/api/properties.api";
@@ -36,6 +36,7 @@ export function EditOfferModal({
   const [maxUsesPerGuest, setMaxUsesPerGuest] = useState<number>(1);
   const [description, setDescription] = useState("");
   const [scope, setScope] = useState<OfferScope>("entire_platform");
+  const [displayPlacement, setDisplayPlacement] = useState<OfferPlacement>("featured");
   const [status, setStatus] = useState<OfferStatus>("Active");
 
   // Dates
@@ -64,6 +65,7 @@ export function EditOfferModal({
       setMaxUsesPerGuest(offer.maxUsesPerGuest ?? 1);
       setDescription(offer.description || "");
       setScope(offer.scope || "entire_platform");
+      setDisplayPlacement(offer.displayPlacement || "featured");
       setStatus(offer.status || "Active");
 
       if (offer.validFrom) {
@@ -182,6 +184,7 @@ export function EditOfferModal({
         maxUsesPerGuest: Number(maxUsesPerGuest) || 1,
         description: description.trim(),
         scope,
+        displayPlacement,
         applicableParks: scope === "holiday_parks" ? selectedParkIds : [],
         applicableProperties: scope === "properties" ? selectedPropertyIds : [],
         validFrom: new Date(validFrom).toISOString(),
@@ -360,43 +363,98 @@ export function EditOfferModal({
             </label>
           </div>
 
-          {/* Target Scope */}
-          <div className="space-y-2 pt-2 border-t border-slate-100">
-            <span className="font-bold text-slate-800 block">Target Scope</span>
-            <div className="flex flex-wrap gap-4">
-              <label className="flex items-center gap-2 font-medium text-slate-700 cursor-pointer">
-                <input
-                  type="radio"
-                  name="edit-scope"
-                  value="entire_platform"
-                  checked={scope === "entire_platform"}
-                  onChange={() => setScope("entire_platform")}
-                  className="accent-[#3b338c]"
-                />
-                Entire Platform
-              </label>
-              <label className="flex items-center gap-2 font-medium text-slate-700 cursor-pointer">
-                <input
-                  type="radio"
-                  name="edit-scope"
-                  value="holiday_parks"
-                  checked={scope === "holiday_parks"}
-                  onChange={() => setScope("holiday_parks")}
-                  className="accent-[#3b338c]"
-                />
-                Specific Holiday Parks
-              </label>
-              <label className="flex items-center gap-2 font-medium text-slate-700 cursor-pointer">
-                <input
-                  type="radio"
-                  name="edit-scope"
-                  value="properties"
-                  checked={scope === "properties"}
-                  onChange={() => setScope("properties")}
-                  className="accent-[#3b338c]"
-                />
-                Specific Properties
-              </label>
+          {/* Target Scope & Website Placement */}
+          <div className="space-y-3 pt-2 border-t border-slate-100">
+            <div>
+              <span className="font-bold text-slate-800 block mb-1">Target Scope</span>
+              <div className="flex flex-wrap gap-4">
+                <label className="flex items-center gap-2 font-medium text-slate-700 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="edit-scope"
+                    value="entire_platform"
+                    checked={scope === "entire_platform"}
+                    onChange={() => setScope("entire_platform")}
+                    className="accent-[#3b338c]"
+                  />
+                  Entire Platform
+                </label>
+                <label className="flex items-center gap-2 font-medium text-slate-700 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="edit-scope"
+                    value="holiday_parks"
+                    checked={scope === "holiday_parks"}
+                    onChange={() => setScope("holiday_parks")}
+                    className="accent-[#3b338c]"
+                  />
+                  Specific Holiday Parks
+                </label>
+                <label className="flex items-center gap-2 font-medium text-slate-700 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="edit-scope"
+                    value="properties"
+                    checked={scope === "properties"}
+                    onChange={() => setScope("properties")}
+                    className="accent-[#3b338c]"
+                  />
+                  Specific Properties
+                </label>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-slate-100">
+              <span className="font-bold text-slate-800 block mb-1">Website Render Section</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label
+                  onClick={() => setDisplayPlacement("featured")}
+                  className={`p-3 rounded-xl border flex flex-col justify-between cursor-pointer transition-all ${
+                    displayPlacement === "featured"
+                      ? "bg-indigo-50/70 border-[#3b338c] ring-1 ring-[#3b338c]"
+                      : "bg-white border-slate-200 hover:border-slate-300"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-900 text-xs">🌟 Featured Seasonal Offers</span>
+                    <input
+                      type="radio"
+                      name="editDisplayPlacement"
+                      value="featured"
+                      checked={displayPlacement === "featured"}
+                      onChange={() => setDisplayPlacement("featured")}
+                      className="accent-[#3b338c]"
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Top spotlight section on consumer website.
+                  </p>
+                </label>
+
+                <label
+                  onClick={() => setDisplayPlacement("special_packages")}
+                  className={`p-3 rounded-xl border flex flex-col justify-between cursor-pointer transition-all ${
+                    displayPlacement === "special_packages"
+                      ? "bg-indigo-50/70 border-[#3b338c] ring-1 ring-[#3b338c]"
+                      : "bg-white border-slate-200 hover:border-slate-300"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-900 text-xs">🎁 Special Resort Packages</span>
+                    <input
+                      type="radio"
+                      name="editDisplayPlacement"
+                      value="special_packages"
+                      checked={displayPlacement === "special_packages"}
+                      onChange={() => setDisplayPlacement("special_packages")}
+                      className="accent-[#3b338c]"
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Special Packages grid section on website.
+                  </p>
+                </label>
+              </div>
             </div>
 
             {scope !== "entire_platform" && (

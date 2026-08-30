@@ -266,7 +266,7 @@ export function OfferDetailsModal({
             </h3>
 
             <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs font-medium text-slate-500">Scope Level:</span>
                 {offer.scope === "entire_platform" && (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-100 text-purple-800 border border-purple-200 text-xs font-bold">
@@ -284,6 +284,19 @@ export function OfferDetailsModal({
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200 text-xs font-bold">
                     <Home size={13} />
                     Specific Accommodation Properties
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 pt-2 border-t border-slate-200/60">
+                <span className="text-xs font-medium text-slate-500">Website Section:</span>
+                {offer.displayPlacement === "special_packages" ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold">
+                    🎁 Special Resort Packages
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-100 text-indigo-900 border border-indigo-300 text-xs font-bold">
+                    🌟 Featured Seasonal Offers
                   </span>
                 )}
               </div>

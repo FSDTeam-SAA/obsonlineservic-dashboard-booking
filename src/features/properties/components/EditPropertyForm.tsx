@@ -10,6 +10,7 @@ import {
   X,
   Sparkles,
   Loader2,
+  MapPin,
 } from "lucide-react";
 import { DashboardShell } from "@/components/shared/DashboardShell";
 import { fetchPropertyById, updateProperty } from "../api/properties.api";
@@ -105,15 +106,19 @@ export function EditPropertyForm({ propertyId, parkId }: EditPropertyFormProps) 
     side3: "",
   });
 
-  // Location
+  // Location & Inheritance
   const [country, setCountry] = useState("Netherlands");
   const [city, setCity] = useState("Utrecht");
   const [region, setRegion] = useState("Veluwe");
   const [googleMapLocation, setGoogleMapLocation] = useState("");
   const [postalCode, setPostalCode] = useState("3511 AR");
+  const [formattedAddress, setFormattedAddress] = useState("");
+  const [latitude, setLatitude] = useState<number | undefined>(undefined);
+  const [longitude, setLongitude] = useState<number | undefined>(undefined);
 
-  // Holiday Parks List
+  // Holiday Parks List & Selected Park Details
   const [holidayParksList, setHolidayParksList] = useState<any[]>([]);
+  const [selectedParkDetails, setSelectedParkDetails] = useState<any>(null);
   const [status, setStatus] = useState<PropertyStatus>("Active");
 
   // Load Property Details & Holiday Parks
@@ -132,9 +137,9 @@ export function EditPropertyForm({ propertyId, parkId }: EditPropertyFormProps) 
 
         if (!isMounted) return;
 
+        let items: any[] = [];
         if (parksRes.status === "fulfilled") {
           const res = parksRes.value;
-          let items: any[] = [];
           if (res.data && res.data.items) {
             items = res.data.items;
           } else if (Array.isArray(res.data)) {
@@ -156,6 +161,9 @@ export function EditPropertyForm({ propertyId, parkId }: EditPropertyFormProps) 
           setBaths(p.baths || 2);
           setBedrooms(Math.max(1, Math.floor((p.beds || 5) / 1.2)));
 
+          if (p.country) setCountry(p.country);
+          if (p.location) setGoogleMapLocation(p.location);
+
           const parsedSize = parseInt(p.size || "140", 10);
           if (!isNaN(parsedSize)) setPropertySize(parsedSize);
 
@@ -168,7 +176,17 @@ export function EditPropertyForm({ propertyId, parkId }: EditPropertyFormProps) 
             });
           }
 
-          if (p.petsAllowed) {
+          if (p.amenities && Array.isArray(p.amenities) && p.amenities.length > 0) {
+            const loadedAmenityNames = p.amenities.map((a: any) => typeof a === "string" ? a : a.name).filter(Boolean);
+            setSelectedFeatures(loadedAmenityNames);
+            setFeaturesList((prev) => {
+              const existingIds = new Set(prev.map((f) => f.id));
+              const extras = loadedAmenityNames
+                .filter((name) => !existingIds.has(name))
+                .map((name) => ({ id: name, label: name, icon: "✨" }));
+              return [...prev, ...extras];
+            });
+          } else if (p.petsAllowed) {
             setSelectedFeatures((prev) => Array.from(new Set([...prev, "Pet Friendly"])));
           }
 
@@ -180,13 +198,17 @@ export function EditPropertyForm({ propertyId, parkId }: EditPropertyFormProps) 
               : p.holidayPark || parkId || "";
           setHolidayPark(pParkId);
 
-          if (typeof p.holidayPark === "object" && p.holidayPark !== null) {
-            const hp: any = p.holidayPark;
+          const hp: any = typeof p.holidayPark === "object" ? p.holidayPark : items.find((item) => item._id === pParkId);
+          if (hp) {
+            setSelectedParkDetails(hp);
             if (hp.location) {
-              if (hp.location.country) setCountry(hp.location.country);
+              if (hp.location.country && !p.country) setCountry(hp.location.country);
               if (hp.location.city) setCity(hp.location.city);
               if (hp.location.region) setRegion(hp.location.region);
               if (hp.location.postalCode) setPostalCode(hp.location.postalCode);
+              if (hp.location.formattedAddress) setFormattedAddress(hp.location.formattedAddress);
+              if (typeof hp.location.latitude === "number") setLatitude(hp.location.latitude);
+              if (typeof hp.location.longitude === "number") setLongitude(hp.location.longitude);
             }
           }
         } else {
@@ -203,6 +225,30 @@ export function EditPropertyForm({ propertyId, parkId }: EditPropertyFormProps) 
     if (propertyId) loadData();
     return () => { isMounted = false; };
   }, [propertyId, parkId]);
+
+  // Sync when parent park dropdown changes
+  useEffect(() => {
+    if (holidayPark && holidayParksList.length > 0) {
+      const matched = holidayParksList.find((p) => p._id === holidayPark);
+      if (matched) {
+        setSelectedParkDetails(matched);
+        if (matched.location) {
+          if (matched.location.country) setCountry(matched.location.country);
+          if (matched.location.city) setCity(matched.location.city);
+          if (matched.location.region) setRegion(matched.location.region);
+          if (matched.location.postalCode) setPostalCode(matched.location.postalCode);
+          if (matched.location.formattedAddress) setFormattedAddress(matched.location.formattedAddress);
+          if (typeof matched.location.latitude === "number") setLatitude(matched.location.latitude);
+          if (typeof matched.location.longitude === "number") setLongitude(matched.location.longitude);
+        }
+        if (matched.badgeLocation) {
+          setGoogleMapLocation(matched.badgeLocation);
+        }
+      }
+    } else if (!holidayPark) {
+      setSelectedParkDetails(null);
+    }
+  }, [holidayPark, holidayParksList]);
 
   const handleGalleryChange = (key: keyof GalleryValues, url: string) => {
     setGallery((prev) => ({ ...prev, [key]: url }));
@@ -238,11 +284,18 @@ export function EditPropertyForm({ propertyId, parkId }: EditPropertyFormProps) 
 
     try {
       setIsSubmitting(true);
+      const selectedPark = holidayParksList.find((hp) => hp._id === holidayPark);
+      const holidayParkName = selectedPark ? (selectedPark.title || selectedPark.name) : undefined;
+      const constructedLocation = [city, region, country].filter(Boolean).join(", ") || googleMapLocation || "Veluwe, Netherlands";
+
       const payload: UpdatePropertyDto = {
         title: title.trim(),
         badge: badge.trim() || propertyType,
         category,
         holidayPark: holidayPark || undefined,
+        holidayParkName,
+        location: constructedLocation,
+        country: country.trim() || "Netherlands",
         description: description.trim() || shortDescription.trim(),
         pricePerNight: Number(pricePerNight),
         guests: Number(guests),
@@ -258,6 +311,13 @@ export function EditPropertyForm({ propertyId, parkId }: EditPropertyFormProps) 
           side2: gallery.side2.trim(),
           side3: gallery.side3.trim(),
         },
+        amenities: selectedFeatures.map((f) => ({ name: f, iconName: "Sparkles" })),
+        specs: [
+          { label: "GUESTS", value: `Up to ${guests}`, iconName: "Users" },
+          { label: "BEDROOMS", value: `${bedrooms}`, iconName: "Home" },
+          { label: "BATHROOMS", value: `${baths}`, iconName: "Bath" },
+          { label: "SIZE", value: `${propertySize} m²`, iconName: "Maximize2" },
+        ],
         status: isDraft ? ("Draft" as PropertyStatus) : status,
         isPopular: true,
       };
@@ -337,7 +397,7 @@ export function EditPropertyForm({ propertyId, parkId }: EditPropertyFormProps) 
                   onChange={(e) => setHolidayPark(e.target.value)}
                   className="h-10 px-3.5 border border-slate-200 rounded-xl outline-none focus:border-[#30277a] bg-white text-slate-800 text-xs font-medium"
                 >
-                  <option value="">Northshore Collection</option>
+                  <option value="">-- Select a Holiday Park (Optional) --</option>
                   {holidayParksList.map((hp) => (
                     <option key={hp._id} value={hp._id}>
                       {hp.title || hp.name}
@@ -612,7 +672,24 @@ export function EditPropertyForm({ propertyId, parkId }: EditPropertyFormProps) 
 
           {/* Section 6: Location */}
           <section className="p-6 border border-slate-200/80 rounded-2xl bg-white shadow-2xs space-y-4">
-            <h2 className="text-base font-bold text-slate-900 tracking-tight">Location</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-bold text-slate-900 tracking-tight">Location & Google Map</h2>
+              {selectedParkDetails && (
+                <span className="text-[10px] font-bold bg-[#30277a] text-white px-2.5 py-1 rounded-lg flex items-center gap-1">
+                  <MapPin size={12} /> Inherited from Park
+                </span>
+              )}
+            </div>
+
+            {selectedParkDetails && (
+              <div className="p-3 bg-violet-50/80 border border-violet-200/80 rounded-xl flex items-center justify-between text-xs text-[#30277a]">
+                <div className="flex items-center gap-2 font-semibold">
+                  <MapPin className="w-4 h-4 text-[#30277a] shrink-0" />
+                  <span>Geographic taxonomy automatically bound to parent Holiday Park: <strong>{selectedParkDetails.title || selectedParkDetails.name}</strong></span>
+                </div>
+                <span className="text-[10px] font-bold bg-[#30277a] text-white px-2 py-0.5 rounded-md">Auto-Synced</span>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
               <label className="grid gap-1.5 font-semibold text-slate-800">
@@ -648,7 +725,7 @@ export function EditPropertyForm({ propertyId, parkId }: EditPropertyFormProps) 
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
               <label className="sm:col-span-2 grid gap-1.5 font-semibold text-slate-800">
-                <span>Google Map Location</span>
+                <span>Google Map Location / Address</span>
                 <input
                   value={googleMapLocation}
                   onChange={(e) => setGoogleMapLocation(e.target.value)}
@@ -670,9 +747,12 @@ export function EditPropertyForm({ propertyId, parkId }: EditPropertyFormProps) 
 
             {/* Interactive Map Visual */}
             <GoogleMapPreview
-              locationName={title || "Nordic Pines Retreat"}
+              locationName={title || selectedParkDetails?.title || selectedParkDetails?.name || "Holiday Park Property"}
               city={city}
               country={country}
+              formattedAddress={formattedAddress || googleMapLocation}
+              latitude={latitude}
+              longitude={longitude}
             />
           </section>
 

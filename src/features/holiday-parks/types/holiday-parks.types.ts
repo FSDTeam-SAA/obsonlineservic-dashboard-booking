@@ -1,31 +1,58 @@
-export interface HolidayParkLocation {
-  country?: string;
+export interface LocationDetails {
+  country: string;
   city?: string;
   region?: string;
   postalCode?: string;
-  streetAddress?: string;
+  formattedAddress?: string;
+  mapLocationPreview?: string;
+  latitude?: number;
+  longitude?: number;
 }
+
+export interface CustomAmenity {
+  title: string;
+  description?: string;
+  iconName?: string;
+}
+
+export type CustomAmenityDto = CustomAmenity;
+
+export interface EcoBadge {
+  tagline?: string;
+  title?: string;
+}
+
+export type ParkStatus = 'Active' | 'Inactive' | 'Maintenance' | 'Draft';
+export type ParkStatusType = ParkStatus;
 
 export interface HolidayPark {
   _id: string;
   name: string;
   title: string;
   badgeLocation?: string;
+  subtitle?: string;
   shortDescription?: string;
   fullDescription?: string;
-  startingPrice: number;
-  totalCapacity?: string;
+  paragraphs?: string[];
+  rating?: number;
+  reviewsCount?: number;
+  heroBanner?: string;
+  coverImage?: string;
+  gallery?: string[];
+  amenities?: string[];
+  featuredAmenities?: CustomAmenity[];
+  startingPrice?: number;
+  currency?: string;
   totalProperties?: number;
   availableProperties?: number;
+  totalCapacity?: string;
   checkInTime?: string;
   checkOutTime?: string;
   receptionHours?: string;
-  amenities?: string[];
-  location?: HolidayParkLocation;
-  coverImage?: string;
+  location?: LocationDetails;
+  ecoBadge?: EcoBadge;
+  status: ParkStatus;
   isFeatured?: boolean;
-  status: "Active" | "Inactive" | "Draft" | "Archived" | "Maintenance";
-  rating?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -34,32 +61,42 @@ export interface CreateHolidayParkDto {
   name: string;
   title: string;
   badgeLocation?: string;
+  subtitle?: string;
   shortDescription?: string;
   fullDescription?: string;
+  paragraphs?: string[];
   startingPrice?: number;
+  currency?: string;
   totalCapacity?: string;
   totalProperties?: number;
   availableProperties?: number;
   checkInTime?: string;
   checkOutTime?: string;
   receptionHours?: string;
+  rating?: number;
+  reviewsCount?: number;
   amenities?: string[];
-  location?: HolidayParkLocation;
+  featuredAmenities?: CustomAmenity[];
+  ecoBadge?: EcoBadge;
+  location?: LocationDetails;
   coverImage?: string;
+  heroBanner?: string;
+  gallery?: string[];
   isFeatured?: boolean;
-  status?: "Active" | "Inactive" | "Draft" | "Archived" | "Maintenance";
+  status?: ParkStatus;
 }
 
-export interface UpdateHolidayParkDto extends Partial<CreateHolidayParkDto> {
-  rating?: number;
-}
+export type CreateHolidayParkPayload = CreateHolidayParkDto;
+
+export interface UpdateHolidayParkDto extends Partial<CreateHolidayParkDto> {}
 
 export interface QueryHolidayParkDto {
+  page?: number;
+  limit?: number;
   search?: string;
   country?: string;
   status?: string;
-  page?: number;
-  limit?: number;
+  isFeatured?: boolean;
 }
 
 export interface PaginatedHolidayParksResponse {
@@ -69,15 +106,5 @@ export interface PaginatedHolidayParksResponse {
     page: number;
     limit: number;
     totalPages: number;
-  };
-  message?: string;
-  data?: {
-    items: HolidayPark[];
-    meta: {
-      total: number;
-      page: number;
-      limit: number;
-      totalPages: number;
-    };
   };
 }

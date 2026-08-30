@@ -4,6 +4,7 @@ import {
   AdminBooking,
   BookingMetrics,
   BookingsListResponse,
+  CreateBookingDto,
   QueryBookingDto,
   UpdateBookingStatusDto,
 } from "../types/bookings.types";
@@ -20,6 +21,14 @@ export async function fetchAdminBookings(
     items: paginated.items,
     meta: paginated.meta || { total: paginated.items.length, page: query?.page || 1, limit: query?.limit || 10, totalPages: 1 },
   };
+}
+
+/**
+ * Create a New Booking / Reservation (Admin / Manual)
+ */
+export async function createAdminBooking(dto: CreateBookingDto): Promise<AdminBooking> {
+  const response = await api.post("/bookings", dto);
+  return unwrapData<AdminBooking>(response.data);
 }
 
 /**
@@ -66,3 +75,6 @@ export async function deleteAdminBooking(id: string): Promise<{ message: string 
 }
 
 export { fetchDashboardOverview } from "@/features/dashboard/api/dashboard.api";
+export { fetchHolidayParks } from "@/features/holiday-parks/api/holiday-parks.api";
+export { fetchAdminProperties } from "@/features/properties/api/properties.api";
+

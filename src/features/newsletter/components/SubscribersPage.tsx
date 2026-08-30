@@ -1,11 +1,24 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
-import { getNewsletterSubscribers } from "../api/newsletter.api";
+import { getNewsletterSubscribers, deleteNewsletterSubscriber } from "../api/newsletter.api";
 import { NewsletterSubscriber } from "../types";
 import { DashboardShell } from "@/components/shared/DashboardShell";
 import { SubscribersSkeleton } from "./SubscribersSkeleton";
-import { Search, ChevronLeft, ChevronRight, CheckCircle2, XCircle, ShieldAlert, BadgeInfo, Download } from "lucide-react";
+import {
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  CheckCircle2,
+  XCircle,
+  ShieldAlert,
+  BadgeInfo,
+  Download,
+  Trash2,
+  Loader2,
+  CheckCircle,
+  X
+} from "lucide-react";
 
 // Local translation dictionary mapping for future i18n extraction
 const dictionary = {
@@ -19,6 +32,7 @@ const dictionary = {
     colEmail: "Email Address",
     colStatus: "Status",
     colSubscribedAt: "Subscribed At",
+    colActions: "Actions",
     badgeActive: "Active",
     badgeInactive: "Inactive",
     totalFound: "Found {count} subscribers",
@@ -41,6 +55,7 @@ export function SubscribersPage() {
   const [loading, setLoading] = useState(true);
   const [loadingWorker, setLoadingWorker] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Filter and Query states
   const [search, setSearch] = useState("");
@@ -48,6 +63,10 @@ export function SubscribersPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+
+  // Delete modal state
+  const [pendingDelete, setPendingDelete] = useState<NewsletterSubscriber | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const workerRef = useRef<Worker | null>(null);
 
@@ -108,6 +127,22 @@ export function SubscribersPage() {
     setStatusFilter(e.target.value);
   };
 
+  const handleDeleteConfirm = async () => {
+    if (!pendingDelete) return;
+    setDeletingId(pendingDelete._id);
+    try {
+      await deleteNewsletterSubscriber(pendingDelete._id);
+      setToastMessage(`Subscriber "${pendingDelete.email}" removed successfully.`);
+      setPendingDelete(null);
+      await fetchSubscribers();
+    } catch (err: any) {
+      console.error("Delete subscriber error:", err);
+      setError(err?.response?.data?.message || "Failed to remove subscriber.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const handleExportCSV = () => {
     if (processedSubscribers.length === 0) return;
 
@@ -145,11 +180,32 @@ export function SubscribersPage() {
     <DashboardShell active="Newsletter" title={t.title} subtitle={t.subtitle}>
       <main className="max-w-[1040px] p-5 md:p-8 space-y-6">
         
+        {/* Toast Message */}
+        {toastMessage && (
+          <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl p-4 flex items-center justify-between shadow-xs">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span className="font-semibold">{toastMessage}</span>
+            </div>
+            <button
+              onClick={() => setToastMessage(null)}
+              className="text-emerald-600 hover:text-emerald-900 p-1 cursor-pointer"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
+
         {/* Status Messages */}
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-650 text-xs rounded-xl p-4 flex items-center gap-2">
-            <ShieldAlert className="w-4.5 h-4.5 shrink-0" />
-            <span>{error}</span>
+          <div className="bg-red-50 border border-red-200 text-red-650 text-xs rounded-xl p-4 flex items-center justify-between gap-2 shadow-xs">
+            <div className="flex items-center gap-2">
+              <ShieldAlert className="w-4.5 h-4.5 shrink-0" />
+              <span>{error}</span>
+            </div>
+            <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 p-1 cursor-pointer">
+              <X size={14} />
+            </button>
           </div>
         )}
 
@@ -169,7 +225,7 @@ export function SubscribersPage() {
             <select
               value={statusFilter}
               onChange={handleStatusChange}
-              className="h-10 px-3 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-700 outline-none focus:bg-white focus:border-[#3b338c] transition-all font-semibold"
+              className="h-10 px-3 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-700 outline-none focus:bg-white focus:border-[#3b338c] transition-all font-semibold cursor-pointer"
             >
               <option value="All">{t.filterAll}</option>
               <option value="Active">{t.filterActive}</option>
@@ -214,6 +270,7 @@ export function SubscribersPage() {
                     <th className="py-4 px-6">{t.colEmail}</th>
                     <th className="py-4 px-6">{t.colStatus}</th>
                     <th className="py-4 px-6">{t.colSubscribedAt}</th>
+                    <th className="py-4 px-6 text-right">{t.colActions}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs font-normal text-slate-750">
@@ -233,6 +290,16 @@ export function SubscribersPage() {
                       </td>
                       <td className="py-4 px-6 text-slate-400">
                         {new Date(sub.createdAt).toLocaleString()}
+                      </td>
+                      <td className="py-4 px-6 text-right">
+                        <button
+                          type="button"
+                          onClick={() => setPendingDelete(sub)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                          title="Remove subscriber"
+                        >
+                          <Trash2 size={15} />
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -270,6 +337,47 @@ export function SubscribersPage() {
           </div>
         )}
       </main>
+
+      {/* Delete Confirmation Modal */}
+      {pendingDelete && (
+        <div className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-xl border border-slate-100 text-center">
+            <div className="w-12 h-12 rounded-full bg-red-50 text-red-600 mx-auto flex items-center justify-center border border-red-100">
+              <Trash2 size={20} />
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-900 text-sm">Remove Subscriber?</h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Are you sure you want to delete <strong className="text-slate-800">{pendingDelete.email}</strong> from your newsletter directory?
+              </p>
+            </div>
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setPendingDelete(null)}
+                className="flex-1 py-2 border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={deletingId === pendingDelete._id}
+                onClick={handleDeleteConfirm}
+                className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+              >
+                {deletingId === pendingDelete._id ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Removing...</span>
+                  </>
+                ) : (
+                  "Remove"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardShell>
   );
 }

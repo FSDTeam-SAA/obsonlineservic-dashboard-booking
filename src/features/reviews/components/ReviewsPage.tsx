@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import { DashboardShell } from "@/components/shared/DashboardShell";
-import { fetchReviews, deleteReview } from "../api/reviews.api";
+import { fetchReviews, updateReview, deleteReview } from "../api/reviews.api";
 import { Review } from "../types/reviews.types";
 import {
   Star,
@@ -16,12 +16,16 @@ import {
   ChevronRight,
   MapPin,
   CheckCircle2,
+  Pencil,
+  Loader2,
+  CheckCircle,
 } from "lucide-react";
 
 export function ReviewsPage() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [ratingFilter, setRatingFilter] = useState<number | 0>(0);
   const [page, setPage] = useState(1);
@@ -30,8 +34,17 @@ export function ReviewsPage() {
 
   // Modals
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
+  const [editingReview, setEditingReview] = useState<Review | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Review | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // Edit Form Fields
+  const [editName, setEditName] = useState("");
+  const [editCountry, setEditCountry] = useState("");
+  const [editRating, setEditRating] = useState(5);
+  const [editComment, setEditComment] = useState("");
+  const [editIsPublished, setEditIsPublished] = useState(true);
 
   const loadReviews = useCallback(async () => {
     setLoading(true);
@@ -63,33 +76,69 @@ export function ReviewsPage() {
     void loadReviews();
   }, [loadReviews]);
 
+  const handleOpenEdit = (rev: Review) => {
+    setEditingReview(rev);
+    setEditName(rev.name);
+    setEditCountry(rev.country || "Netherlands");
+    setEditRating(rev.rating);
+    setEditComment(rev.comment);
+    setEditIsPublished(rev.isPublished ?? true);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingReview) return;
+
+    setSaving(true);
+    setError(null);
+    try {
+      await updateReview(editingReview._id, {
+        name: editName,
+        country: editCountry,
+        rating: editRating,
+        comment: editComment,
+        isPublished: editIsPublished,
+      });
+      setToastMessage(`Review for "${editName}" updated successfully.`);
+      setEditingReview(null);
+      void loadReviews();
+    } catch (err: any) {
+      console.error("Update review error:", err);
+      setError(err?.response?.data?.message || "Failed to save review changes.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleDeleteConfirm = async () => {
     if (!pendingDelete) return;
     setDeletingId(pendingDelete._id);
     try {
       await deleteReview(pendingDelete._id);
+      setToastMessage(`Review by "${pendingDelete.name}" deleted successfully.`);
       setPendingDelete(null);
       void loadReviews();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Delete review error:", err);
-      setError("Failed to delete review. Please try again.");
+      setError(err?.response?.data?.message || "Failed to delete review. Please try again.");
     } finally {
       setDeletingId(null);
     }
   };
 
-  const renderStars = (rating: number) => {
+  const renderStars = (rating: number, interactive = false, onSelect?: (r: number) => void) => {
     return (
       <div className="flex items-center gap-0.5">
         {[1, 2, 3, 4, 5].map((star) => (
           <Star
             key={star}
-            size={13}
-            className={
+            size={interactive ? 18 : 13}
+            onClick={() => interactive && onSelect && onSelect(star)}
+            className={`transition-colors ${
               star <= rating
                 ? "fill-amber-400 text-amber-400"
                 : "fill-slate-200 text-slate-200"
-            }
+            } ${interactive ? "cursor-pointer hover:scale-110" : ""}`}
           />
         ))}
       </div>
@@ -146,11 +195,24 @@ export function ReviewsPage() {
           </div>
         </section>
 
+        {/* Toast Message */}
+        {toastMessage && (
+          <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl p-4 flex items-center justify-between shadow-xs">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span className="font-semibold">{toastMessage}</span>
+            </div>
+            <button onClick={() => setToastMessage(null)} className="text-emerald-600 hover:text-emerald-900 p-1 cursor-pointer">
+              <X size={14} />
+            </button>
+          </div>
+        )}
+
         {/* Error Alert */}
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl p-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <ShieldAlert className="w-4 h-4 text-red-600" />
+              <ShieldAlert className="w-4 h-4 text-red-600 shrink-0" />
               <span>{error}</span>
             </div>
             <button
@@ -252,14 +314,21 @@ export function ReviewsPage() {
                           <div className="flex items-center justify-end gap-1">
                             <button
                               onClick={() => setSelectedReview(rev)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-[#3b338c] hover:bg-slate-100 transition-colors"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-[#3b338c] hover:bg-slate-100 transition-colors cursor-pointer"
                               title="View details"
                             >
                               <Eye size={15} />
                             </button>
                             <button
+                              onClick={() => handleOpenEdit(rev)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-violet-700 hover:bg-violet-50 transition-colors cursor-pointer"
+                              title="Edit review"
+                            >
+                              <Pencil size={15} />
+                            </button>
+                            <button
                               onClick={() => setPendingDelete(rev)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                               title="Delete review"
                             >
                               <Trash2 size={15} />
@@ -285,14 +354,14 @@ export function ReviewsPage() {
               <button
                 disabled={page === 1}
                 onClick={() => setPage((p) => Math.max(p - 1, 1))}
-                className="h-8 px-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 transition-colors flex items-center gap-1"
+                className="h-8 px-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 transition-colors flex items-center gap-1 cursor-pointer"
               >
                 <ChevronLeft size={14} /> Previous
               </button>
               <button
                 disabled={page === totalPages}
                 onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
-                className="h-8 px-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 transition-colors flex items-center gap-1"
+                className="h-8 px-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 transition-colors flex items-center gap-1 cursor-pointer"
               >
                 Next <ChevronRight size={14} />
               </button>
@@ -303,13 +372,13 @@ export function ReviewsPage() {
 
       {/* Review Detail Modal */}
       {selectedReview && (
-        <div className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl border border-slate-100">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-semibold text-slate-900 text-sm">Guest Review Details</h3>
               <button
                 onClick={() => setSelectedReview(null)}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
               >
                 <X size={16} />
               </button>
@@ -346,10 +415,22 @@ export function ReviewsPage() {
               </div>
             </div>
 
-            <div className="pt-2 flex justify-end">
+            <div className="pt-2 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const target = selectedReview;
+                  setSelectedReview(null);
+                  handleOpenEdit(target);
+                }}
+                className="px-4 py-2 bg-[#3b338c] hover:bg-[#2d276f] text-white font-semibold rounded-lg text-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <Pencil size={13} />
+                <span>Edit Review</span>
+              </button>
               <button
                 onClick={() => setSelectedReview(null)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg text-xs transition-colors"
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg text-xs transition-colors cursor-pointer"
               >
                 Close
               </button>
@@ -358,32 +439,129 @@ export function ReviewsPage() {
         </div>
       )}
 
+      {/* Edit Review Modal */}
+      {editingReview && (
+        <div className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl border border-slate-100">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="font-bold text-slate-900 text-sm">Edit Guest Review</h3>
+              <button
+                type="button"
+                onClick={() => setEditingReview(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Guest Name</label>
+                <input
+                  type="text"
+                  required
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full h-10 px-3.5 border border-slate-200 rounded-lg outline-none bg-slate-50 focus:bg-white focus:border-[#3b338c] text-xs font-normal"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Country</label>
+                <input
+                  type="text"
+                  value={editCountry}
+                  onChange={(e) => setEditCountry(e.target.value)}
+                  className="w-full h-10 px-3.5 border border-slate-200 rounded-lg outline-none bg-slate-50 focus:bg-white focus:border-[#3b338c] text-xs font-normal"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Rating (1 to 5 Stars)</label>
+                <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between">
+                  {renderStars(editRating, true, (r) => setEditRating(r))}
+                  <span className="font-bold text-slate-800 text-xs">{editRating} Stars</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Review Comment</label>
+                <textarea
+                  required
+                  rows={4}
+                  value={editComment}
+                  onChange={(e) => setEditComment(e.target.value)}
+                  className="w-full p-3 border border-slate-200 rounded-lg outline-none bg-slate-50 focus:bg-white focus:border-[#3b338c] text-xs font-normal leading-relaxed"
+                />
+              </div>
+
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={editIsPublished}
+                  onChange={(e) => setEditIsPublished(e.target.checked)}
+                  className="w-4 h-4 rounded border-slate-300 text-[#3b338c] accent-[#3b338c]"
+                />
+                <span className="font-semibold text-slate-800">Publish Testimonial</span>
+              </label>
+
+              <div className="pt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingReview(null)}
+                  className="px-4 py-2 border border-slate-200 bg-white text-slate-700 font-semibold rounded-lg text-xs hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-5 py-2 bg-[#3b338c] hover:bg-[#2d276f] text-white font-semibold rounded-lg text-xs transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>Save Review</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Delete Confirmation Dialog */}
       {pendingDelete && (
-        <div className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
           <div className="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-xl border border-slate-100 text-center">
-            <div className="w-12 h-12 rounded-full bg-red-50 text-red-600 mx-auto flex items-center justify-center">
+            <div className="w-12 h-12 rounded-full bg-red-50 text-red-600 mx-auto flex items-center justify-center border border-red-100">
               <Trash2 size={20} />
             </div>
             <div>
-              <h3 className="font-semibold text-slate-900 text-sm">Delete Review?</h3>
+              <h3 className="font-bold text-slate-900 text-sm">Delete Review?</h3>
               <p className="text-xs text-slate-500 mt-1">
-                Are you sure you want to permanently remove this review by "{pendingDelete.name}"?
+                Are you sure you want to permanently remove this review by <strong className="text-slate-800">"{pendingDelete.name}"</strong>?
               </p>
             </div>
             <div className="flex items-center gap-3 pt-2">
               <button
+                type="button"
                 onClick={() => setPendingDelete(null)}
-                className="flex-1 py-2 border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                className="flex-1 py-2 border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 disabled={deletingId === pendingDelete._id}
                 onClick={handleDeleteConfirm}
-                className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
+                className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
               >
-                {deletingId === pendingDelete._id ? "Deleting..." : "Delete"}
+                {deletingId === pendingDelete._id ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  "Delete"
+                )}
               </button>
             </div>
           </div>

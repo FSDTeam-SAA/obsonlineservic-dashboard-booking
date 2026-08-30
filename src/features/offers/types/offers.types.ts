@@ -4,6 +4,19 @@ export type OfferScope = 'entire_platform' | 'holiday_parks' | 'properties';
 
 export type OfferStatus = 'Active' | 'Expired' | 'Draft' | 'Inactive';
 
+export interface ApplicableParkItem {
+  _id: string;
+  name?: string;
+  title?: string;
+  location?: string;
+}
+
+export interface ApplicablePropertyItem {
+  _id: string;
+  title: string;
+  pricePerNight?: number;
+}
+
 export interface Offer {
   _id: string;
   offerName: string;
@@ -19,8 +32,8 @@ export interface Offer {
   maxUsesPerGuest?: number;
   usedCount?: number;
   scope: OfferScope;
-  applicableParks?: any[];
-  applicableProperties?: any[];
+  applicableParks?: (ApplicableParkItem | string)[];
+  applicableProperties?: (ApplicablePropertyItem | string)[];
   applicableParkNames?: string[];
   validFrom: string;
   validUntil: string;
@@ -70,3 +83,4 @@ export interface PaginatedOffersResponse {
     totalPages: number;
   };
 }
+

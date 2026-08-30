@@ -4,7 +4,6 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ChevronDown,
-  MoreVertical,
   Plus,
   Search,
   Trash2,
@@ -12,33 +11,53 @@ import {
   Calendar,
   AlertCircle,
   Eye,
+  Edit,
   X,
+  Loader2,
+  CheckCircle,
+  Globe,
+  Trees,
+  Home,
+  Copy,
+  Check,
+  RotateCcw,
+  Sparkles,
+  TrendingUp,
+  Percent,
+  Euro,
+  Users,
+  Clock,
+  Filter,
 } from "lucide-react";
 import { DashboardShell } from "@/components/shared/DashboardShell";
 import { fetchOffers, deleteOffer } from "../api/offers.api";
 import { Offer } from "../types/offers.types";
 import { OffersTableSkeleton } from "./OffersTableSkeleton";
+import { OfferDetailsModal } from "./OfferDetailsModal";
+import { EditOfferModal } from "./EditOfferModal";
 
 export function OffersPage() {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
 
-  // Selected Offer Modal State
-  const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
+  // Modals
+  const [viewingOffer, setViewingOffer] = useState<Offer | null>(null);
+  const [editingOffer, setEditingOffer] = useState<Offer | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<Offer | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Filters & Pagination
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [scopeFilter, setScopeFilter] = useState("All");
   const [typeFilter, setTypeFilter] = useState("All");
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-
-  // Action Menu / Delete modal state
-  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const loadOffers = async () => {
     try {
@@ -49,6 +68,7 @@ export function OffersPage() {
         limit,
         search: searchTerm || undefined,
         status: statusFilter !== "All" ? statusFilter : undefined,
+        scope: scopeFilter !== "All" ? (scopeFilter as any) : undefined,
         offerType: typeFilter !== "All" ? (typeFilter as any) : undefined,
       });
 
@@ -68,36 +88,45 @@ export function OffersPage() {
       loadOffers();
     }, 300);
     return () => clearTimeout(timer);
-  }, [searchTerm, statusFilter, typeFilter, page]);
+  }, [searchTerm, statusFilter, scopeFilter, typeFilter, page]);
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!window.confirm(`Are you sure you want to delete the offer "${name}"?`)) {
-      return;
-    }
+  const handleDeleteConfirm = async () => {
+    if (!pendingDelete) return;
 
     try {
-      setDeletingId(id);
-      await deleteOffer(id);
-      setActiveMenuId(null);
+      setDeletingId(pendingDelete._id);
+      await deleteOffer(pendingDelete._id);
+      setToastMessage(`Offer "${pendingDelete.offerName}" deleted successfully.`);
+      if (viewingOffer?._id === pendingDelete._id) {
+        setViewingOffer(null);
+      }
+      setPendingDelete(null);
       loadOffers();
     } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to delete offer.");
+      setError(err?.response?.data?.message || "Failed to delete offer.");
     } finally {
       setDeletingId(null);
     }
   };
 
+  const handleCopyCode = (offerId: string, code?: string) => {
+    if (!code) return;
+    navigator.clipboard.writeText(code);
+    setCopiedCodeId(offerId);
+    setTimeout(() => setCopiedCodeId(null), 2000);
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "Active":
-        return "border-emerald-700 bg-emerald-100 text-emerald-700";
+        return "bg-emerald-50 text-emerald-700 border-emerald-200";
       case "Expired":
-        return "border-rose-700 bg-rose-100 text-rose-700";
+        return "bg-rose-50 text-rose-700 border-rose-200";
       case "Draft":
-        return "border-amber-700 bg-amber-100 text-amber-700";
+        return "bg-amber-50 text-amber-700 border-amber-200";
       case "Inactive":
       default:
-        return "border-slate-400 bg-slate-100 text-slate-600";
+        return "bg-slate-100 text-slate-600 border-slate-200";
     }
   };
 
@@ -110,36 +139,115 @@ export function OffersPage() {
     });
   };
 
-  const getAppliesTo = (offer: Offer) => {
-    if (offer.scope === "entire_platform") return "Entire Platform";
+  const renderScopeBadge = (offer: Offer) => {
+    if (offer.scope === "entire_platform") {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-200 text-xs font-semibold">
+          <Globe size={13} className="text-purple-600 shrink-0" />
+          Entire Platform
+        </span>
+      );
+    }
     if (offer.scope === "holiday_parks") {
-      if (offer.applicableParks?.length) {
-        return `${offer.applicableParks.length} Holiday Park(s)`;
-      }
-      return "Holiday Parks";
+      const parkCount = offer.applicableParks?.length || offer.applicableParkNames?.length || 0;
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold">
+          <Trees size={13} className="text-emerald-600 shrink-0" />
+          {parkCount > 0 ? `${parkCount} Holiday Park(s)` : "Holiday Parks"}
+        </span>
+      );
     }
     if (offer.scope === "properties") {
-      if (offer.applicableProperties?.length) {
-        return `${offer.applicableProperties.length} Property(ies)`;
-      }
-      return "Selected Properties";
+      const propCount = offer.applicableProperties?.length || 0;
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-semibold">
+          <Home size={13} className="text-indigo-600 shrink-0" />
+          {propCount > 0 ? `${propCount} Property(ies)` : "Properties"}
+        </span>
+      );
     }
-    return "Custom Scope";
+    return <span className="text-xs text-slate-500">Custom Scope</span>;
   };
+
+  // Stats calculation
+  const activeCount = offers.filter((o) => o.status === "Active").length;
+  const globalCount = offers.filter((o) => o.scope === "entire_platform").length;
+  const expiredCount = offers.filter((o) => o.status === "Expired").length;
 
   return (
     <DashboardShell
       active="Offers"
       title="Offers & Promotions"
-      subtitle="Create and manage promotional campaigns for your holiday parks and properties."
+      subtitle="Manage promotional discount codes, targeted holiday park deals, and seasonal campaigns."
     >
-      <main className="grid gap-5 p-5 md:p-8 font-sans">
-        {/* Controls Section */}
-        <section className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="grid flex-1 gap-3 sm:grid-cols-3">
+      <main className="grid gap-6 p-5 md:p-8 font-sans max-w-7xl mx-auto">
+        
+        {/* Toast Alert Banner */}
+        {toastMessage && (
+          <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs rounded-xl p-4 flex items-center justify-between shadow-xs animate-in fade-in">
+            <div className="flex items-center gap-2.5">
+              <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span className="font-semibold">{toastMessage}</span>
+            </div>
+            <button
+              onClick={() => setToastMessage(null)}
+              className="text-emerald-600 hover:text-emerald-900 p-1 cursor-pointer"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
+
+        {/* Top Summary Cards */}
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-indigo-50 text-[#3b338c] flex items-center justify-center shrink-0 border border-indigo-100">
+              <Tag size={22} />
+            </div>
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Campaigns</span>
+              <h3 className="text-2xl font-black text-slate-900">{totalCount}</h3>
+            </div>
+          </div>
+
+          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100">
+              <TrendingUp size={22} />
+            </div>
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Active Offers</span>
+              <h3 className="text-2xl font-black text-emerald-700">{activeCount}</h3>
+            </div>
+          </div>
+
+          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 border border-purple-100">
+              <Globe size={22} />
+            </div>
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Platform-wide Scope</span>
+              <h3 className="text-2xl font-black text-purple-700">{globalCount}</h3>
+            </div>
+          </div>
+
+          <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 border border-rose-100">
+              <Clock size={22} />
+            </div>
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Expired / Inactive</span>
+              <h3 className="text-2xl font-black text-rose-700">{expiredCount}</h3>
+            </div>
+          </div>
+        </section>
+
+        {/* Filter & Actions Bar */}
+        <section className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="grid flex-1 gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+            
             {/* Search Input */}
-            <label className="flex h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-slate-400 focus-within:border-[#3b338c]">
-              <Search size={18} />
+            <label className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-slate-400 focus-within:border-[#3b338c] focus-within:ring-2 focus-within:ring-[#3b338c]/10 transition-all">
+              <Search size={16} />
               <span className="sr-only">Search offers</span>
               <input
                 value={searchTerm}
@@ -147,9 +255,17 @@ export function OffersPage() {
                   setSearchTerm(e.target.value);
                   setPage(1);
                 }}
-                className="w-full text-sm text-slate-800 outline-none bg-transparent placeholder-slate-400"
-                placeholder="Search offer name or code..."
+                className="w-full text-xs text-slate-800 outline-none bg-transparent placeholder-slate-400 font-medium"
+                placeholder="Search offer name or promo code..."
               />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm("")}
+                  className="text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
+                  <X size={14} />
+                </button>
+              )}
             </label>
 
             {/* Status Filter */}
@@ -160,7 +276,7 @@ export function OffersPage() {
                   setStatusFilter(e.target.value);
                   setPage(1);
                 }}
-                className="h-11 w-full appearance-none rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 outline-none cursor-pointer pr-10 focus:border-[#3b338c]"
+                className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-semibold text-slate-700 outline-none cursor-pointer pr-9 focus:border-[#3b338c]"
               >
                 <option value="All">All Statuses</option>
                 <option value="Active">Active</option>
@@ -169,8 +285,29 @@ export function OffersPage() {
                 <option value="Inactive">Inactive</option>
               </select>
               <ChevronDown
-                size={15}
-                className="absolute right-3.5 top-3.5 text-slate-400 pointer-events-none"
+                size={14}
+                className="absolute right-3 top-3.5 text-slate-400 pointer-events-none"
+              />
+            </div>
+
+            {/* Scope Filter */}
+            <div className="relative">
+              <select
+                value={scopeFilter}
+                onChange={(e) => {
+                  setScopeFilter(e.target.value);
+                  setPage(1);
+                }}
+                className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-semibold text-slate-700 outline-none cursor-pointer pr-9 focus:border-[#3b338c]"
+              >
+                <option value="All">All Scope Levels</option>
+                <option value="entire_platform">Entire Platform</option>
+                <option value="holiday_parks">Holiday Parks</option>
+                <option value="properties">Properties</option>
+              </select>
+              <ChevronDown
+                size={14}
+                className="absolute right-3 top-3.5 text-slate-400 pointer-events-none"
               />
             </div>
 
@@ -182,260 +319,341 @@ export function OffersPage() {
                   setTypeFilter(e.target.value);
                   setPage(1);
                 }}
-                className="h-11 w-full appearance-none rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 outline-none cursor-pointer pr-10 focus:border-[#3b338c]"
+                className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-semibold text-slate-700 outline-none cursor-pointer pr-9 focus:border-[#3b338c]"
               >
-                <option value="All">All Offer Types</option>
+                <option value="All">All Discount Types</option>
                 <option value="percentage">Percentage Discount</option>
                 <option value="fixed">Fixed Amount Discount</option>
               </select>
               <ChevronDown
-                size={15}
-                className="absolute right-3.5 top-3.5 text-slate-400 pointer-events-none"
+                size={14}
+                className="absolute right-3 top-3.5 text-slate-400 pointer-events-none"
               />
             </div>
           </div>
 
-          <Link
-            href="/dashboard/offers/create"
-            className="flex h-11 items-center justify-center gap-2 rounded-lg bg-[#3b338c] hover:bg-[#2d276f] px-6 font-semibold text-white shadow-xs transition-colors shrink-0"
-          >
-            <Plus size={18} />
-            Create Offer
-          </Link>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => loadOffers()}
+              title="Refresh table data"
+              className="h-11 w-11 flex items-center justify-center rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition-colors cursor-pointer"
+            >
+              <RotateCcw size={16} />
+            </button>
+
+            <Link
+              href="/dashboard/offers/create"
+              className="flex h-11 items-center justify-center gap-2 rounded-xl bg-[#3b338c] hover:bg-[#2d276f] px-5 font-bold text-white text-xs shadow-md transition-all cursor-pointer hover:shadow-lg"
+            >
+              <Plus size={16} />
+              Create Offer
+            </Link>
+          </div>
         </section>
 
-        {/* Offers Table */}
+        {/* Offers Data Table */}
         {loading ? (
           <OffersTableSkeleton />
         ) : error ? (
-          <div className="p-8 bg-white border border-slate-200 rounded-lg text-center space-y-3">
-            <AlertCircle className="w-8 h-8 text-rose-500 mx-auto" />
-            <p className="text-sm font-semibold text-slate-800">{error}</p>
+          <div className="p-10 bg-white border border-slate-200 rounded-2xl text-center space-y-3 shadow-xs">
+            <AlertCircle className="w-10 h-10 text-rose-500 mx-auto" />
+            <h3 className="text-base font-bold text-slate-900">Failed to Load Offers</h3>
+            <p className="text-xs text-slate-500 max-w-md mx-auto">{error}</p>
             <button
               onClick={() => loadOffers()}
-              className="px-4 py-2 bg-[#3b338c] text-white text-xs font-semibold rounded-lg"
+              className="px-5 py-2.5 bg-[#3b338c] text-white text-xs font-bold rounded-xl hover:bg-[#2d276f] transition-colors cursor-pointer shadow-xs"
             >
               Try Again
             </button>
           </div>
         ) : offers.length === 0 ? (
-          <div className="p-12 bg-white border border-slate-200 rounded-lg text-center space-y-3">
-            <Tag className="w-10 h-10 text-slate-300 mx-auto" />
-            <h3 className="text-base font-bold text-slate-800">No Offers Found</h3>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              No promotional offers match your current criteria. Create a new campaign to boost bookings.
-            </p>
+          <div className="p-14 bg-white border border-slate-200 rounded-2xl text-center space-y-4 shadow-xs">
+            <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-[#3b338c] flex items-center justify-center mx-auto border border-indigo-100">
+              <Tag size={28} />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-base font-extrabold text-slate-900">No Promotional Offers Found</h3>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                {searchTerm || statusFilter !== "All" || scopeFilter !== "All"
+                  ? "No offers match your current filter parameters. Try resetting your search."
+                  : "No promotional campaigns created yet. Click 'Create Offer' to launch your first deal."}
+              </p>
+            </div>
+            <Link
+              href="/dashboard/offers/create"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#3b338c] text-white text-xs font-bold rounded-xl hover:bg-[#2d276f] transition-colors cursor-pointer shadow-xs"
+            >
+              <Plus size={16} />
+              Create First Offer
+            </Link>
           </div>
         ) : (
-          <section className="overflow-x-auto bg-white rounded-lg border border-slate-200 shadow-xs">
-            <table className="min-w-[1000px] w-full border-collapse">
-              <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 tracking-wider">
-                <tr>
-                  <th className="p-4 text-left font-semibold">Offer Name & Code</th>
-                  <th className="p-4 text-center font-semibold">Discount</th>
-                  <th className="p-4 text-center font-semibold">Applies To</th>
-                  <th className="p-4 text-center font-semibold">Valid From</th>
-                  <th className="p-4 text-center font-semibold">Valid Until</th>
-                  <th className="p-4 text-center font-semibold">Status</th>
-                  <th className="p-4 text-center font-semibold">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {offers.map((offer) => (
-                  <tr
-                    key={offer._id}
-                    className="text-center text-sm hover:bg-slate-50/60 transition-colors"
-                  >
-                    <td className="p-4 text-left">
-                      <div className="font-semibold text-slate-900">{offer.offerName}</div>
-                      {offer.offerCode && (
-                        <span className="inline-block mt-0.5 font-mono text-[11px] bg-slate-100 text-[#3b338c] px-2 py-0.5 rounded border border-slate-200 font-bold">
-                          {offer.offerCode}
-                        </span>
-                      )}
-                    </td>
-                    <td className="p-4 font-bold text-slate-800">
-                      {offer.discountValue || (offer.offerType === "percentage" ? `${offer.discountPercentage}%` : `€${offer.fixedDiscount}`)}
-                    </td>
-                    <td className="p-4 text-slate-600 text-xs font-medium">
-                      {getAppliesTo(offer)}
-                    </td>
-                    <td className="p-4 text-slate-600 text-xs">
-                      {formatDate(offer.validFrom)}
-                    </td>
-                    <td className="p-4 text-slate-600 text-xs">
-                      {formatDate(offer.validUntil)}
-                    </td>
-                    <td className="p-4">
-                      <span
-                        className={`inline-block rounded-full border px-3 py-0.5 text-xs font-semibold ${getStatusBadge(
-                          offer.status
-                        )}`}
-                      >
-                        {offer.status}
-                      </span>
-                    </td>
-                    <td className="p-4 relative">
-                      <button
-                        onClick={() =>
-                          setActiveMenuId(activeMenuId === offer._id ? null : offer._id)
-                        }
-                        aria-label={`Actions for ${offer.offerName}`}
-                        className="p-1 text-slate-400 hover:text-slate-700 rounded transition-colors"
-                      >
-                        <MoreVertical size={18} />
-                      </button>
-
-                      {/* Dropdown Menu */}
-                      {activeMenuId === offer._id && (
-                        <div className="absolute right-4 top-12 z-20 w-36 bg-white border border-slate-200 rounded-lg shadow-lg py-1 text-left text-xs font-medium">
-                          <button
-                            onClick={() => {
-                              setSelectedOffer(offer);
-                              setActiveMenuId(null);
-                            }}
-                            className="w-full px-3 py-2 text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors cursor-pointer"
-                          >
-                            <Eye size={14} />
-                            <span>View Details</span>
-                          </button>
-                          <button
-                            onClick={() => handleDelete(offer._id, offer.offerName)}
-                            disabled={deletingId === offer._id}
-                            className="w-full px-3 py-2 text-rose-600 hover:bg-rose-50 flex items-center gap-2 transition-colors cursor-pointer border-t border-slate-100"
-                          >
-                            <Trash2 size={14} />
-                            <span>Delete Offer</span>
-                          </button>
-                        </div>
-                      )}
-                    </td>
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[950px]">
+                <thead className="bg-slate-50/80 border-b border-slate-200 text-[11px] uppercase font-bold text-slate-500 tracking-wider">
+                  <tr>
+                    <th className="py-3.5 px-5">Offer Name & Promo Code</th>
+                    <th className="py-3.5 px-4 text-center">Discount</th>
+                    <th className="py-3.5 px-4 text-center">Applies To</th>
+                    <th className="py-3.5 px-4 text-center">Campaign Capacity</th>
+                    <th className="py-3.5 px-4 text-center">Validity Window</th>
+                    <th className="py-3.5 px-4 text-center">Status</th>
+                    <th className="py-3.5 px-5 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
-        )}
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-xs font-medium">
+                  {offers.map((offer) => {
+                    const maxUses = offer.maxUses || 0;
+                    const usedCount = offer.usedCount || 0;
+                    const usagePct = maxUses > 0 ? Math.min(100, Math.round((usedCount / maxUses) * 100)) : 0;
 
-        {/* Pagination Section */}
-        {totalCount > 0 && (
-          <div className="flex flex-wrap items-center justify-between gap-4 pt-2 text-xs font-medium text-slate-500">
-            <span>
-              Showing {offers.length ? (page - 1) * limit + 1 : 0}–
-              {Math.min(page * limit, totalCount)} of {totalCount} offers
-            </span>
+                    return (
+                      <tr
+                        key={offer._id}
+                        className="hover:bg-slate-50/70 transition-colors group"
+                      >
+                        {/* Offer Name & Code */}
+                        <td className="py-4 px-5">
+                          <div className="flex flex-col space-y-1">
+                            <button
+                              type="button"
+                              onClick={() => setViewingOffer(offer)}
+                              className="text-left font-bold text-slate-900 group-hover:text-[#3b338c] transition-colors cursor-pointer hover:underline text-sm"
+                            >
+                              {offer.offerName}
+                            </button>
 
-            <div className="flex items-center gap-1.5">
-              <button
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                className="px-3 py-1.5 rounded border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 font-semibold"
-              >
-                Previous
-              </button>
-              <span className="px-3 py-1.5">
-                Page {page} of {totalPages}
-              </span>
-              <button
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                className="px-3 py-1.5 rounded border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 font-semibold"
-              >
-                Next
-              </button>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {offer.offerCode ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyCode(offer._id, offer.offerCode)}
+                                  className="inline-flex items-center gap-1 font-mono text-[11px] bg-amber-50 hover:bg-amber-100 text-amber-900 px-2 py-0.5 rounded-md border border-amber-200 font-bold transition-all cursor-pointer"
+                                  title="Click to copy code"
+                                >
+                                  <Tag size={11} className="text-amber-700" />
+                                  <span>{offer.offerCode}</span>
+                                  {copiedCodeId === offer._id ? (
+                                    <Check size={11} className="text-emerald-600" />
+                                  ) : (
+                                    <Copy size={11} className="text-amber-600 opacity-60" />
+                                  )}
+                                </button>
+                              ) : (
+                                <span className="text-[10px] text-slate-400 italic">No Promo Code</span>
+                              )}
+
+                              {offer.description && (
+                                <span className="text-[11px] text-slate-500 truncate max-w-[220px]">
+                                  • {offer.description}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Discount */}
+                        <td className="py-4 px-4 text-center">
+                          <div className="inline-flex flex-col items-center">
+                            <span className="font-extrabold text-slate-900 text-sm flex items-center gap-1">
+                              {offer.offerType === "percentage" ? (
+                                <Percent size={13} className="text-[#3b338c]" />
+                              ) : (
+                                <Euro size={13} className="text-[#3b338c]" />
+                              )}
+                              {offer.discountValue || (offer.offerType === "percentage" ? `${offer.discountPercentage}%` : `€${offer.fixedDiscount}`)}
+                            </span>
+                            {offer.minBookingAmount ? (
+                              <span className="text-[10px] text-slate-400 font-normal">
+                                Min: €{offer.minBookingAmount}
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-slate-400 font-normal">No Min</span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Scope & Destinations */}
+                        <td className="py-4 px-4 text-center">
+                          <div className="inline-flex justify-center">
+                            {renderScopeBadge(offer)}
+                          </div>
+                        </td>
+
+                        {/* Capacity Progress */}
+                        <td className="py-4 px-4 text-center">
+                          <div className="inline-flex flex-col items-center space-y-1 min-w-[110px]">
+                            <span className="text-[11px] font-bold text-slate-700">
+                              {usedCount} / {maxUses > 0 ? maxUses : "∞"}
+                            </span>
+                            {maxUses > 0 && (
+                              <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden border border-slate-200">
+                                <div
+                                  className={`h-full rounded-full transition-all duration-300 ${
+                                    usagePct > 90 ? "bg-rose-500" : usagePct > 60 ? "bg-amber-500" : "bg-[#3b338c]"
+                                  }`}
+                                  style={{ width: `${usagePct}%` }}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Validity Window */}
+                        <td className="py-4 px-4 text-center">
+                          <div className="flex flex-col items-center space-y-0.5">
+                            <span className="text-[11px] font-semibold text-slate-800">
+                              {formatDate(offer.validFrom)}
+                            </span>
+                            <span className="text-[10px] text-slate-400">
+                              to {formatDate(offer.validUntil)}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* Status */}
+                        <td className="py-4 px-4 text-center">
+                          <span
+                            className={`inline-block rounded-full border px-3 py-0.5 text-[11px] font-bold ${getStatusBadge(
+                              offer.status
+                            )}`}
+                          >
+                            {offer.status}
+                          </span>
+                        </td>
+
+                        {/* Action Buttons */}
+                        <td className="py-4 px-5 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => setViewingOffer(offer)}
+                              title="View details & scope"
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-[#3b338c] hover:bg-indigo-50 border border-slate-200 transition-colors cursor-pointer"
+                            >
+                              <Eye size={15} />
+                            </button>
+                            <button
+                              onClick={() => setEditingOffer(offer)}
+                              title="Edit offer parameters"
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 border border-slate-200 transition-colors cursor-pointer"
+                            >
+                              <Edit size={15} />
+                            </button>
+                            <button
+                              onClick={() => setPendingDelete(offer)}
+                              title="Delete offer"
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-rose-700 hover:bg-rose-50 border border-slate-200 transition-colors cursor-pointer"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
+
+            {/* Pagination Controls */}
+            {totalCount > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-4 p-4 border-t border-slate-200 text-xs font-semibold text-slate-500 bg-slate-50/50">
+                <span>
+                  Showing {offers.length ? (page - 1) * limit + 1 : 0}–
+                  {Math.min(page * limit, totalCount)} of {totalCount} total campaigns
+                </span>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    disabled={page <= 1}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    className="px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 font-bold transition-colors cursor-pointer"
+                  >
+                    Previous
+                  </button>
+                  <span className="px-2">
+                    Page {page} of {totalPages}
+                  </span>
+                  <button
+                    disabled={page >= totalPages}
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    className="px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 font-bold transition-colors cursor-pointer"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Offer Details Modal Overlay */}
-        {selectedOffer && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-            <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-100 animate-in fade-in zoom-in duration-200">
-              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                <div>
-                  <h3 className="text-base font-bold text-slate-900">{selectedOffer.offerName}</h3>
-                  {selectedOffer.offerCode && (
-                    <span className="inline-block mt-1 font-mono text-[11px] bg-slate-100 text-[#3b338c] px-2 py-0.5 rounded border border-slate-200 font-bold">
-                      {selectedOffer.offerCode}
-                    </span>
+        {/* View Offer Details Modal */}
+        <OfferDetailsModal
+          offer={viewingOffer}
+          onClose={() => setViewingOffer(null)}
+          onEdit={(off) => {
+            setViewingOffer(null);
+            setEditingOffer(off);
+          }}
+          onDelete={(off) => {
+            setViewingOffer(null);
+            setPendingDelete(off);
+          }}
+        />
+
+        {/* Edit Offer Modal */}
+        <EditOfferModal
+          offer={editingOffer}
+          isOpen={!!editingOffer}
+          onClose={() => setEditingOffer(null)}
+          onSuccess={(updated) => {
+            setToastMessage(`Offer "${updated.offerName}" updated successfully.`);
+            loadOffers();
+          }}
+        />
+
+        {/* Delete Confirmation Modal */}
+        {pendingDelete && (
+          <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+            <div className="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl border border-slate-100 text-center animate-in zoom-in-95 duration-150">
+              <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 mx-auto flex items-center justify-center border border-rose-100">
+                <Trash2 size={22} />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-slate-900 text-base">Delete Offer Campaign?</h3>
+                <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                  Are you sure you want to permanently delete <strong className="text-slate-800">"{pendingDelete.offerName}"</strong>? This will remove the promotional discount code and cannot be undone.
+                </p>
+              </div>
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setPendingDelete(null)}
+                  className="flex-1 py-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={deletingId === pendingDelete._id}
+                  onClick={handleDeleteConfirm}
+                  className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+                >
+                  {deletingId === pendingDelete._id ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Deleting...</span>
+                    </>
+                  ) : (
+                    "Delete Offer"
                   )}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedOffer(null)}
-                  className="p-1.5 rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              <div className="p-6 space-y-4 text-xs">
-                {selectedOffer.description && (
-                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                    <span className="font-bold text-slate-400 uppercase tracking-wider block mb-1">Description</span>
-                    <p className="text-slate-700">{selectedOffer.description}</p>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <span className="font-bold text-slate-400 uppercase tracking-wider block">Discount Type & Value</span>
-                    <p className="font-bold text-slate-900 text-sm mt-1">
-                      {selectedOffer.discountValue || (selectedOffer.offerType === "percentage" ? `${selectedOffer.discountPercentage}%` : `€${selectedOffer.fixedDiscount}`)}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="font-bold text-slate-400 uppercase tracking-wider block">Status</span>
-                    <span className={`inline-block mt-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${getStatusBadge(selectedOffer.status)}`}>
-                      {selectedOffer.status}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <span className="font-bold text-slate-400 uppercase tracking-wider block">Min Booking Amount</span>
-                    <p className="font-semibold text-slate-800 mt-1">
-                      {selectedOffer.minBookingAmount ? `€${selectedOffer.minBookingAmount}` : "None"}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="font-bold text-slate-400 uppercase tracking-wider block">Max Discount Cap</span>
-                    <p className="font-semibold text-slate-800 mt-1">
-                      {selectedOffer.maxDiscount ? `€${selectedOffer.maxDiscount}` : "None"}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <span className="font-bold text-slate-400 uppercase tracking-wider block">Valid From</span>
-                    <p className="font-semibold text-slate-800 mt-1">{formatDate(selectedOffer.validFrom)}</p>
-                  </div>
-                  <div>
-                    <span className="font-bold text-slate-400 uppercase tracking-wider block">Valid Until</span>
-                    <p className="font-semibold text-slate-800 mt-1">{formatDate(selectedOffer.validUntil)}</p>
-                  </div>
-                </div>
-
-                <div>
-                  <span className="font-bold text-slate-400 uppercase tracking-wider block">Applies To</span>
-                  <p className="font-semibold text-slate-800 mt-1">{getAppliesTo(selectedOffer)}</p>
-                </div>
-              </div>
-
-              <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => setSelectedOffer(null)}
-                  className="px-4 py-2 border border-slate-200 bg-white text-slate-700 font-semibold rounded-lg text-xs hover:bg-slate-50 transition-colors"
-                >
-                  Close
                 </button>
               </div>
             </div>
           </div>
         )}
+
       </main>
     </DashboardShell>
   );

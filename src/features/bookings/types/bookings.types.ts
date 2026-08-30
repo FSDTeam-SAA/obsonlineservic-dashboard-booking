@@ -19,20 +19,41 @@ export interface AdminBooking {
   email: string;
   phone?: string;
   avatar?: string;
-  holidayPark?: any;
+  holidayPark?: {
+    _id?: string;
+    name?: string;
+    title?: string;
+    badgeLocation?: string;
+    [key: string]: any;
+  } | string | null;
   park?: string;
-  property?: any;
+  property?: {
+    _id?: string;
+    title?: string;
+    gallery?: string[];
+    category?: string;
+    pricePerNight?: number;
+    cleaningFee?: number;
+    taxes?: number;
+    [key: string]: any;
+  } | string | null;
   propertyName?: string;
   checkInDate: string;
   checkOutDate: string;
   dates?: string;
   nights?: number;
   guestsCount?: number;
+  pricePerNight?: number;
+  cleaningFee?: number;
+  taxes?: number;
+  discount?: number;
+  offerCode?: string;
   amount?: string;
   totalAmount?: number;
   currency?: string;
   status: BookingStatus | string;
   paymentStatus?: PaymentStatus | string;
+  specialRequests?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -49,6 +70,23 @@ export interface QueryBookingDto {
 export interface UpdateBookingStatusDto {
   status: BookingStatus | string;
   paymentStatus?: PaymentStatus | string;
+}
+
+export interface CreateBookingDto {
+  guest: string;
+  email: string;
+  phone?: string;
+  avatar?: string;
+  holidayPark?: string;
+  park?: string;
+  property: string;
+  propertyName?: string;
+  checkInDate: string | Date;
+  checkOutDate: string | Date;
+  guestsCount?: number;
+  offerCode?: string;
+  currency?: string;
+  specialRequests?: string;
 }
 
 export interface BookingMetrics {
@@ -68,3 +106,4 @@ export interface BookingsListResponse {
     totalPages: number;
   };
 }
+

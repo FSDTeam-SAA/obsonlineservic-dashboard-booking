@@ -1,7 +1,5 @@
-import { PropertiesPage } from "@/features/properties/components/PropertiesPage";
-
-export const dynamic = "force-dynamic";
+import { redirect } from "next/navigation";
 
 export default function DashboardProperties() {
-  return <PropertiesPage />;
+  redirect("/dashboard/holiday-parks");
 }

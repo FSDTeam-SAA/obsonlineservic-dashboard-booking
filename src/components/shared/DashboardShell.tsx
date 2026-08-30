@@ -8,7 +8,6 @@ import { useRouter } from "next/navigation";
 
 const navigation = [
   ["Dashboard", "/dashboard", Grid2X2],
-  ["Properties", "/dashboard/properties", CalendarDays],
   ["Holiday Parks", "/dashboard/holiday-parks", TreePine],
   ["Bookings", "/dashboard/bookings", TicketCheck],
   ["Offers", "/dashboard/offers", CirclePercent],
@@ -68,18 +67,20 @@ export function DashboardShell({
             <img src={logo} alt="OBS Online Service" className="max-h-20 w-full object-contain object-left" />
           </div>
           <nav className="mt-12 grid gap-6">
-            {navigation.map(([name, href, Icon]) => (
-              <Link
-                key={name}
-                href={href}
-                className={`flex h-12 items-center gap-2 rounded px-3 text-base transition-colors ${
-                  active === name ? "bg-[#3b338c] font-bold text-white shadow-sm" : "text-slate-900 hover:bg-violet-50"
-                }`}
-              >
-                <Icon size={21} aria-hidden="true" />
-                {name}
-              </Link>
-            ))}
+            {navigation.map(([navName, href, Icon]) => {
+              const isActive = active === navName || (navName === "Holiday Parks" && (active === "Properties" || active === "Holiday Parks"));
+              return (
+                <Link
+                  key={navName}
+                  href={href}
+                  className={`flex h-12 items-center gap-2 rounded px-3 text-base transition-colors ${isActive ? "bg-[#3b338c] font-bold text-white shadow-sm" : "text-slate-900 hover:bg-violet-50"
+                    }`}
+                >
+                  <Icon size={21} aria-hidden="true" />
+                  {navName}
+                </Link>
+              );
+            })}
           </nav>
         </div>
 
@@ -125,7 +126,7 @@ export function DashboardShell({
               <Bell size={18} className="text-slate-600" />
               <i className="absolute right-3.5 top-3.5 size-2 rounded-full bg-red-650" />
             </button>
-            
+
             <div className="hidden items-center gap-3 sm:flex pl-2 border-l border-slate-200">
               <div className="size-10 rounded-full bg-slate-100 overflow-hidden flex items-center justify-center border border-slate-200 shrink-0">
                 {avatarUrl ? (
@@ -143,7 +144,7 @@ export function DashboardShell({
             </div>
           </div>
         </header>
-        
+
         {/* Main Workspace Content */}
         {children}
       </div>

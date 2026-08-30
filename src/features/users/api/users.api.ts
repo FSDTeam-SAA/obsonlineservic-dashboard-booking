@@ -8,6 +8,13 @@ export async function getAllUsers(query: GetUsersQueryDto): Promise<UsersListRes
   return response.data;
 }
 
+export async function getAllAdmins(query: GetUsersQueryDto): Promise<UsersListResponse> {
+  const response = await api.get<UsersListResponse>("/user/all-admins", {
+    params: query,
+  });
+  return response.data;
+}
+
 export async function getUserById(id: string): Promise<UserDetailsResponse> {
   const response = await api.get<UserDetailsResponse>(`/user/${id}`);
   return response.data;

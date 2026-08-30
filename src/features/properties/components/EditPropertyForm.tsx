@@ -17,9 +17,10 @@ import axios from "axios";
 
 interface EditPropertyFormProps {
   propertyId: string;
+  parkId?: string;
 }
 
-export function EditPropertyForm({ propertyId }: EditPropertyFormProps) {
+export function EditPropertyForm({ propertyId, parkId }: EditPropertyFormProps) {
   const router = useRouter();
 
   // Loading & Error States
@@ -30,16 +31,15 @@ export function EditPropertyForm({ propertyId }: EditPropertyFormProps) {
 
   // Holiday Parks List
   const [holidayParksList, setHolidayParksList] = useState<
-    { _id: string; title?: string; name?: string }[]
+    { _id: string; title?: string; name?: string; location?: any; badgeLocation?: string }[]
   >([]);
 
   // Form State
   const [title, setTitle] = useState("");
   const [badge, setBadge] = useState("");
   const [category, setCategory] = useState<PropertyCategory>("Wellness Villas");
-  const [holidayPark, setHolidayPark] = useState("");
-  const [location, setLocation] = useState("");
-  const [country, setCountry] = useState("");
+  const [holidayPark, setHolidayPark] = useState(parkId || "");
+  const [selectedParkDetails, setSelectedParkDetails] = useState<any>(null);
   const [pricePerNight, setPricePerNight] = useState<number>(129);
   const [guests, setGuests] = useState<number>(4);
   const [beds, setBeds] = useState<number>(2);
@@ -77,13 +77,15 @@ export function EditPropertyForm({ propertyId }: EditPropertyFormProps) {
 
         if (!isMounted) return;
 
+        let parksItems: any[] = [];
         if (parksRes.status === "fulfilled") {
           const res = parksRes.value;
           if (res.data && res.data.items) {
-            setHolidayParksList(res.data.items);
+            parksItems = res.data.items;
           } else if (Array.isArray(res.data)) {
-            setHolidayParksList(res.data);
+            parksItems = res.data;
           }
+          setHolidayParksList(parksItems);
         }
 
         if (propertyRes.status === "fulfilled") {
@@ -92,14 +94,19 @@ export function EditPropertyForm({ propertyId }: EditPropertyFormProps) {
           setBadge(p.badge || "FEATURED LODGE");
           setCategory(p.category || "Wellness Villas");
 
-          const parkId =
+          const pParkId =
             typeof p.holidayPark === "object" && p.holidayPark !== null
               ? p.holidayPark._id
-              : p.holidayPark || "";
-          setHolidayPark(parkId);
+              : p.holidayPark || parkId || "";
+          setHolidayPark(pParkId);
 
-          setLocation(p.location || "");
-          setCountry(p.country || "");
+          if (typeof p.holidayPark === "object" && p.holidayPark !== null) {
+            setSelectedParkDetails(p.holidayPark);
+          } else if (pParkId && parksItems.length > 0) {
+            const matched = parksItems.find((hp) => hp._id === pParkId);
+            if (matched) setSelectedParkDetails(matched);
+          }
+
           setPricePerNight(p.pricePerNight ?? 129);
           setGuests(p.guests ?? 4);
           setBeds(p.beds ?? 2);
@@ -139,7 +146,7 @@ export function EditPropertyForm({ propertyId }: EditPropertyFormProps) {
     return () => {
       isMounted = false;
     };
-  }, [propertyId]);
+  }, [propertyId, parkId]);
 
   const handleGalleryChange = (key: keyof GalleryValues, url: string) => {
     setGallery((prev) => ({ ...prev, [key]: url }));
@@ -168,8 +175,6 @@ export function EditPropertyForm({ propertyId }: EditPropertyFormProps) {
         badge: badge.trim(),
         category,
         holidayPark: holidayPark || undefined,
-        location: location.trim(),
-        country: country.trim(),
         description: description.trim(),
         pricePerNight: Number(pricePerNight),
         guests: Number(guests),
@@ -192,9 +197,14 @@ export function EditPropertyForm({ propertyId }: EditPropertyFormProps) {
       await updateProperty(propertyId, payload);
       setSuccessMsg("Property updated successfully!");
 
+      const targetParkId = parkId || holidayPark;
       setTimeout(() => {
-        router.push("/dashboard/properties");
-      }, 800);
+        if (targetParkId) {
+          router.push(`/dashboard/holiday-parks/${targetParkId}/properties`);
+        } else {
+          router.push("/dashboard/holiday-parks");
+        }
+      }, 600);
     } catch (err: unknown) {
       console.error("Failed to update property:", err);
       if (axios.isAxiosError(err)) {
@@ -208,16 +218,19 @@ export function EditPropertyForm({ propertyId }: EditPropertyFormProps) {
     }
   };
 
+  const targetParkId = parkId || holidayPark;
+  const backHref = targetParkId ? `/dashboard/holiday-parks/${targetParkId}/properties` : "/dashboard/holiday-parks";
+
   return (
     <DashboardShell
-      active="Properties"
+      active="Holiday Parks"
       title="Edit Property"
       subtitle={`Update listing details for property ID: ${propertyId}`}
     >
       <main className="p-5 md:p-8 font-sans grid gap-6 max-w-5xl mx-auto">
         <div className="flex items-center justify-between">
           <Link
-            href="/dashboard/properties"
+            href={backHref}
             className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-[#3b338c] transition-colors"
           >
             <ChevronLeft size={16} />
@@ -290,13 +303,14 @@ export function EditPropertyForm({ propertyId }: EditPropertyFormProps) {
                 </label>
 
                 <label className="grid gap-1.5 font-semibold text-slate-700">
-                  <span>Belongs to Holiday Park (Optional)</span>
+                  <span>Parent Holiday Park *</span>
                   <select
                     value={holidayPark}
+                    disabled={Boolean(parkId)}
                     onChange={(e) => setHolidayPark(e.target.value)}
-                    className="h-10 px-3 border border-slate-200 rounded outline-none focus:border-[#3b338c]"
+                    className="h-10 px-3 border border-slate-200 rounded outline-none focus:border-[#3b338c] bg-slate-50 disabled:opacity-80 font-bold text-[#3b338c]"
                   >
-                    <option value="">-- Independent Property --</option>
+                    <option value="">-- Select Holiday Park --</option>
                     {holidayParksList.map((hp) => (
                       <option key={hp._id} value={hp._id}>
                         {hp.title || hp.name || "Holiday Park"}
@@ -304,26 +318,21 @@ export function EditPropertyForm({ propertyId }: EditPropertyFormProps) {
                     ))}
                   </select>
                 </label>
+              </div>
 
-                <label className="grid gap-1.5 font-semibold text-slate-700">
-                  <span>Location</span>
-                  <input
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    placeholder="e.g. Veluwe Forest Resort, NL"
-                    className="h-10 px-3 border border-slate-200 rounded outline-none focus:border-[#3b338c]"
-                  />
-                </label>
-
-                <label className="grid gap-1.5 font-semibold text-slate-700">
-                  <span>Country</span>
-                  <input
-                    value={country}
-                    onChange={(e) => setCountry(e.target.value)}
-                    placeholder="e.g. Netherlands"
-                    className="h-10 px-3 border border-slate-200 rounded outline-none focus:border-[#3b338c]"
-                  />
-                </label>
+              {/* Geographic Location Inheritance Banner */}
+              <div className="p-3.5 bg-violet-50/70 border border-violet-100 rounded-lg flex items-center justify-between text-xs text-slate-700">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-[#3b338c]">📍 Geographic Location:</span>
+                  <span>
+                    {selectedParkDetails?.location?.city
+                      ? `${selectedParkDetails.location.city}, ${selectedParkDetails.location.country || ""}`
+                      : selectedParkDetails?.badgeLocation || "Inherited automatically from parent Holiday Park"}
+                  </span>
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-200">
+                  Auto-Inherited
+                </span>
               </div>
 
               <label className="grid gap-1.5 font-semibold text-slate-700 text-xs">

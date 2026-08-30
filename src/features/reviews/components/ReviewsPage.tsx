@@ -96,13 +96,56 @@ export function ReviewsPage() {
     );
   };
 
+  // Calculated Stats
+  const avgRating = reviews.length
+    ? (reviews.reduce((acc, r) => acc + (r.rating || 5), 0) / reviews.length).toFixed(1)
+    : "4.9";
+  const fiveStarCount = reviews.filter((r) => r.rating === 5).length;
+
   return (
     <DashboardShell
       active="Reviews"
       title="Guest Reviews & Moderation"
       subtitle="Inspect guest feedback, ratings, and moderate customer testimonials."
     >
-      <main className="max-w-[1040px] p-5 md:p-8 space-y-6">
+      <main className="max-w-[1040px] p-5 md:p-8 space-y-6 font-sans">
+        
+        {/* KPI Stats Bar */}
+        <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs flex items-center gap-4">
+            <div className="size-11 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-100">
+              <Star className="size-5.5 fill-amber-400 text-amber-400" />
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Average Satisfaction</span>
+              <strong className="text-xl font-bold text-slate-900 block leading-tight">{avgRating} / 5.0</strong>
+              <span className="text-[10px] text-slate-500 font-medium">Overall Rating Index</span>
+            </div>
+          </div>
+
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs flex items-center gap-4">
+            <div className="size-11 rounded-xl bg-violet-50 text-[#3b338c] flex items-center justify-center shrink-0 border border-violet-100">
+              <MessageSquare className="size-5.5" />
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Verified Reviews</span>
+              <strong className="text-xl font-bold text-slate-900 block leading-tight">{totalCount}</strong>
+              <span className="text-[10px] text-slate-500 font-medium">Customer Testimonials</span>
+            </div>
+          </div>
+
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs flex items-center gap-4">
+            <div className="size-11 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-100">
+              <CheckCircle2 className="size-5.5" />
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">5-Star Testimonials</span>
+              <strong className="text-xl font-bold text-emerald-700 block leading-tight">{fiveStarCount}</strong>
+              <span className="text-[10px] text-slate-500 font-medium">Top Rated Stays</span>
+            </div>
+          </div>
+        </section>
+
         {/* Error Alert */}
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl p-4 flex items-center justify-between">
@@ -112,7 +155,7 @@ export function ReviewsPage() {
             </div>
             <button
               onClick={() => setError(null)}
-              className="text-red-500 hover:text-red-700 p-1"
+              className="text-red-500 hover:text-red-700 p-1 cursor-pointer"
             >
               <X size={14} />
             </button>
@@ -120,7 +163,7 @@ export function ReviewsPage() {
         )}
 
         {/* Directory Controls */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 max-w-xl">
             <label className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3.5 text-slate-400 focus-within:bg-white focus-within:border-[#3b338c] transition-all">
               <Search size={15} />
@@ -130,7 +173,7 @@ export function ReviewsPage() {
                   setSearch(e.target.value);
                   setPage(1);
                 }}
-                className="w-full bg-transparent text-xs outline-none placeholder:text-slate-400 text-slate-700"
+                className="w-full bg-transparent text-xs outline-none placeholder:text-slate-400 text-slate-700 font-normal"
                 placeholder="Search reviews by guest name or comment..."
               />
             </label>
@@ -141,7 +184,7 @@ export function ReviewsPage() {
                 setRatingFilter(Number(e.target.value));
                 setPage(1);
               }}
-              className="h-10 px-3 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-700 outline-none focus:bg-white focus:border-[#3b338c] transition-all font-semibold"
+              className="h-10 px-3 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-700 outline-none focus:bg-white focus:border-[#3b338c] transition-all font-semibold cursor-pointer"
             >
               <option value={0}>All Ratings</option>
               <option value={5}>5 Stars Only</option>
@@ -152,7 +195,7 @@ export function ReviewsPage() {
           </div>
 
           <div className="text-xs text-slate-400 font-normal self-end sm:self-center">
-            Found {totalCount} reviews
+            Found <strong className="text-slate-700">{totalCount}</strong> reviews
           </div>
         </div>
 

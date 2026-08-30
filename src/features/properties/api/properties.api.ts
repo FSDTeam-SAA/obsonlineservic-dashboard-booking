@@ -24,6 +24,48 @@ export async function fetchAdminProperties(
   };
 }
 
+export async function fetchPropertiesByPark(
+  parkId: string,
+  query?: PropertyQueryDto
+): Promise<{ park?: any; items: Property[]; meta: any }> {
+  try {
+    const response = await api.get(`/holiday-parks/${parkId}/properties`, {
+      params: query,
+    });
+    const data = response.data?.data || response.data;
+    return {
+      park: data?.park,
+      items: data?.items || [],
+      meta: data?.meta || { total: 0, page: 1, limit: 10, totalPages: 1 },
+    };
+  } catch (err) {
+    console.warn('Direct park properties route failed, falling back to /properties query:', err);
+    // Fallback: fetch park details & properties list in parallel
+    const [parkRes, propertiesRes] = await Promise.allSettled([
+      api.get(`/holiday-parks/${parkId}`),
+      api.get('/properties', {
+        params: { ...query, holidayPark: parkId },
+      }),
+    ]);
+
+    const parkData = parkRes.status === 'fulfilled' ? unwrapData<any>(parkRes.value.data) : null;
+    let items: Property[] = [];
+    let meta = { total: 0, page: 1, limit: 10, totalPages: 1 };
+
+    if (propertiesRes.status === 'fulfilled') {
+      const paginated = unwrapPaginated<Property>(propertiesRes.value.data);
+      items = paginated.items;
+      meta = paginated.meta || { total: items.length, page: 1, limit: 10, totalPages: 1 };
+    }
+
+    return {
+      park: parkData,
+      items,
+      meta,
+    };
+  }
+}
+
 export async function fetchPopularProperties(): Promise<Property[]> {
   const response = await api.get('/properties/popular');
   return unwrapData<Property[]>(response.data) || [];

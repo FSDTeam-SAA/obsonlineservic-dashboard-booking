@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { DashboardShell } from "@/components/shared/DashboardShell";
 import { ImageUploadBox } from "@/components/shared/ImageUploadBox";
 import {
@@ -28,7 +29,10 @@ import {
   Star,
 } from "lucide-react";
 
+import { HolidayParkTableSkeleton } from "./HolidayParkTableSkeleton";
+
 export function HolidayParksPage() {
+  const router = useRouter();
   const [parks, setParks] = useState<HolidayPark[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -169,13 +173,68 @@ export function HolidayParksPage() {
     }
   };
 
+  // Quick Stats
+  const activeCount = parks.filter((p) => p.status === "Active").length;
+  const totalPropsManaged = parks.reduce((sum, p) => sum + (p.totalProperties || 0), 0);
+  const avgStartingRate = parks.length
+    ? Math.round(parks.reduce((sum, p) => sum + (p.startingPrice || 129), 0) / parks.length)
+    : 129;
+
   return (
     <DashboardShell
-      active="Properties"
+      active="Holiday Parks"
       title="Holiday Parks Management"
       subtitle="Manage resort parks, amenities, check-in times, and park-level pricing."
     >
-      <main className="max-w-[1040px] p-5 md:p-8 space-y-6">
+      <main className="container p-5 md:p-8 space-y-6 font-sans">
+
+        {/* KPI Stats Bar */}
+        <section className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs flex items-center gap-3.5">
+            <div className="size-10 rounded-xl bg-violet-50 text-[#3b338c] flex items-center justify-center shrink-0 border border-violet-100">
+              <TreePine className="size-5" />
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Parks</span>
+              <strong className="text-xl font-bold text-slate-900 block leading-tight">{totalCount}</strong>
+              <span className="text-[10px] text-slate-500 font-medium">Resort Parks</span>
+            </div>
+          </div>
+
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs flex items-center gap-3.5">
+            <div className="size-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-100">
+              <CheckCircle2 className="size-5" />
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Active Parks</span>
+              <strong className="text-xl font-bold text-emerald-700 block leading-tight">{activeCount}</strong>
+              <span className="text-[10px] text-slate-500 font-medium">Live Bookable</span>
+            </div>
+          </div>
+
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs flex items-center gap-3.5">
+            <div className="size-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center shrink-0 border border-blue-100">
+              <Home className="size-5" />
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Managed Lodges</span>
+              <strong className="text-xl font-bold text-blue-800 block leading-tight">{totalPropsManaged}</strong>
+              <span className="text-[10px] text-slate-500 font-medium">Accommodations</span>
+            </div>
+          </div>
+
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs flex items-center gap-3.5">
+            <div className="size-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-100">
+              <Star className="size-5 fill-amber-400 text-amber-400" />
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Avg Rate</span>
+              <strong className="text-xl font-bold text-slate-900 block leading-tight">€{avgStartingRate}</strong>
+              <span className="text-[10px] text-slate-500 font-medium">Per Night</span>
+            </div>
+          </div>
+        </section>
+
         {/* Error Alert */}
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl p-4 flex items-center justify-between">
@@ -183,14 +242,14 @@ export function HolidayParksPage() {
               <ShieldAlert className="w-4 h-4 text-red-600" />
               <span>{error}</span>
             </div>
-            <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 p-1">
+            <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 p-1 cursor-pointer">
               <X size={14} />
             </button>
           </div>
         )}
 
         {/* Directory Action Header */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 max-w-xl">
             <label className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3.5 text-slate-400 focus-within:bg-white focus-within:border-[#3b338c] transition-all">
               <Search size={15} />
@@ -200,7 +259,7 @@ export function HolidayParksPage() {
                   setSearch(e.target.value);
                   setPage(1);
                 }}
-                className="w-full bg-transparent text-xs outline-none placeholder:text-slate-400 text-slate-700"
+                className="w-full bg-transparent text-xs outline-none placeholder:text-slate-400 text-slate-700 font-normal"
                 placeholder="Search holiday parks by name or location..."
               />
             </label>
@@ -211,7 +270,7 @@ export function HolidayParksPage() {
                 setStatusFilter(e.target.value);
                 setPage(1);
               }}
-              className="h-10 px-3 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-700 outline-none focus:bg-white focus:border-[#3b338c] transition-all font-semibold"
+              className="h-10 px-3 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-700 outline-none focus:bg-white focus:border-[#3b338c] transition-all font-semibold cursor-pointer"
             >
               <option value="All">All Status</option>
               <option value="Active">Active Only</option>
@@ -222,7 +281,7 @@ export function HolidayParksPage() {
           <div className="flex items-center gap-3 self-end sm:self-center">
             <button
               onClick={handleOpenAddModal}
-              className="h-10 px-4 bg-[#3b338c] hover:bg-[#2d2670] text-white font-semibold text-xs rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+              className="h-10 px-4 bg-[#3b338c] hover:bg-[#2d2670] text-white font-semibold text-xs rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
             >
               <Plus size={15} />
               <span>Add Holiday Park</span>
@@ -233,9 +292,7 @@ export function HolidayParksPage() {
         {/* Parks Directory Table */}
         <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
           {loading ? (
-            <div className="p-8 text-center text-slate-400 text-xs animate-pulse">
-              Loading holiday parks directory...
-            </div>
+            <HolidayParkTableSkeleton />
           ) : parks.length === 0 ? (
             <div className="p-12 text-center space-y-3">
               <TreePine className="w-10 h-10 mx-auto text-slate-300" />
@@ -249,9 +306,10 @@ export function HolidayParksPage() {
               <table className="w-full text-left border-collapse min-w-[750px]">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 text-[11px] uppercase tracking-wider font-semibold">
-                    <th className="py-3 px-4">Park Location</th>
+                    <th className="py-3 px-4">Holiday Park</th>
+                    <th className="py-3 px-4">Location</th>
                     <th className="py-3 px-4">Properties</th>
-                    <th className="py-3 px-4">Check-In / Out</th>
+                    <th className="py-3 px-4">Total Capacity</th>
                     <th className="py-3 px-4">Starting Rate</th>
                     <th className="py-3 px-4">Status</th>
                     <th className="py-3 px-4 text-right">Actions</th>
@@ -259,7 +317,11 @@ export function HolidayParksPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
                   {parks.map((park) => (
-                    <tr key={park._id} className="hover:bg-slate-50/80 transition-colors">
+                    <tr
+                      key={park._id}
+                      className="hover:bg-violet-50/40 transition-colors cursor-pointer group"
+                      onClick={() => router.push(`/dashboard/holiday-parks/${park._id}/properties`)}
+                    >
                       <td className="py-3.5 px-4">
                         <div className="flex items-center gap-3">
                           {park.coverImage ? (
@@ -274,44 +336,53 @@ export function HolidayParksPage() {
                             </div>
                           )}
                           <div className="min-w-0">
-                            <div className="font-semibold text-slate-900 truncate">
+                            <div className="font-bold text-slate-900 group-hover:text-[#3b338c] transition-colors truncate">
                               {park.title || park.name}
                             </div>
-                            <div className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
-                              <MapPin size={10} />
-                              {park.badgeLocation || "Netherlands"}
+                            <div className="text-[10px] text-slate-400 truncate">
+                              ID: {park._id.slice(-6)}
                             </div>
                           </div>
                         </div>
                       </td>
-                      <td className="py-3.5 px-4 font-medium text-slate-600">
-                        <div className="flex items-center gap-1.5">
-                          <Home size={13} className="text-slate-400" />
-                          <span>{park.totalProperties || 10} Units</span>
+                      <td className="py-3.5 px-4">
+                        <div className="text-slate-700 font-medium flex items-center gap-1">
+                          <MapPin size={12} className="text-slate-400 shrink-0" />
+                          <span>{park.location?.city ? `${park.location.city}, ${park.location.country || ''}` : (park.badgeLocation || "Netherlands")}</span>
                         </div>
                       </td>
-                      <td className="py-3.5 px-4 text-slate-500">
-                        <div className="flex items-center gap-1">
-                          <Clock size={12} className="text-slate-400" />
-                          <span>{park.checkInTime || "15:00"} / {park.checkOutTime || "11:00"}</span>
-                        </div>
+                      <td className="py-3.5 px-4 font-semibold text-slate-900">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 group-hover:bg-[#3b338c] group-hover:text-white transition-colors text-xs">
+                          <Home size={13} />
+                          {park.totalProperties || 0} Properties
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-slate-600">
+                        {park.totalCapacity || "N/A"}
                       </td>
                       <td className="py-3.5 px-4 font-bold text-[#3b338c]">
                         €{park.startingPrice} <span className="text-[10px] font-normal text-slate-400">/night</span>
                       </td>
                       <td className="py-3.5 px-4">
                         <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
-                            park.status === "Active"
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                              : "bg-slate-100 text-slate-600 border-slate-200"
-                          }`}
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${park.status === "Active"
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            : "bg-slate-100 text-slate-600 border-slate-200"
+                            }`}
                         >
                           {park.status || "Active"}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 text-right">
+                      <td className="py-3.5 px-4 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => router.push(`/dashboard/holiday-parks/${park._id}/properties`)}
+                            className="h-8 px-2.5 rounded-lg text-xs font-semibold bg-[#3b338c]/10 text-[#3b338c] hover:bg-[#3b338c] hover:text-white transition-all flex items-center gap-1"
+                            title="Manage properties under this park"
+                          >
+                            <Home size={13} />
+                            <span>Properties</span>
+                          </button>
                           <button
                             onClick={() => setViewingPark(park)}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-[#3b338c] hover:bg-slate-100 transition-colors"
@@ -461,41 +532,82 @@ export function HolidayParksPage() {
       {/* Viewing Details Modal */}
       {viewingPark && (
         <div className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl border border-slate-100">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl border border-slate-100 font-sans">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-semibold text-slate-900 text-sm">Holiday Park Overview</h3>
-              <button onClick={() => setViewingPark(null)} className="text-slate-400 hover:text-slate-600">
+              <div className="flex items-center gap-2">
+                <TreePine size={16} className="text-[#3b338c]" />
+                <h3 className="font-bold text-slate-900 text-sm">Holiday Park Overview</h3>
+              </div>
+              <button onClick={() => setViewingPark(null)} className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">
                 <X size={16} />
               </button>
             </div>
 
-            <div className="space-y-3 text-xs text-slate-600">
+            <div className="space-y-3.5 text-xs text-slate-600">
               {viewingPark.coverImage && (
-                <img src={viewingPark.coverImage} alt="" className="w-full h-36 rounded-xl object-cover border border-slate-100" />
+                <div className="relative">
+                  <img src={viewingPark.coverImage} alt="" className="w-full h-40 rounded-xl object-cover border border-slate-100 shadow-xs" />
+                  <span
+                    className={`absolute top-2 right-2 px-2.5 py-0.5 rounded-full text-[10px] font-bold border shadow-xs ${viewingPark.status === "Active"
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                      : "bg-amber-50 text-amber-700 border-amber-200"
+                      }`}
+                  >
+                    {viewingPark.status || "Active"}
+                  </span>
+                </div>
               )}
-              <div className="font-bold text-slate-900 text-base">{viewingPark.title || viewingPark.name}</div>
-              <div className="text-slate-400 flex items-center gap-1">
-                <MapPin size={12} /> {viewingPark.badgeLocation || "Veluwe, Netherlands"}
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-xl">
-                <div>
-                  <span className="text-slate-400 block">Starting Rate</span>
-                  <span className="font-semibold text-slate-900">€{viewingPark.startingPrice} / night</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block">Total Properties</span>
-                  <span className="font-semibold text-slate-900">{viewingPark.totalProperties || 10} Units</span>
+              <div>
+                <div className="font-bold text-slate-900 text-base">{viewingPark.title || viewingPark.name}</div>
+                <div className="text-slate-400 flex items-center gap-1 mt-0.5">
+                  <MapPin size={13} className="text-slate-400" /> <span>{viewingPark.badgeLocation || "Veluwe, Netherlands"}</span>
                 </div>
               </div>
 
-              <p className="text-slate-700 italic">{viewingPark.shortDescription || "No description provided."}</p>
+              <div className="grid grid-cols-3 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                <div>
+                  <span className="text-[10px] text-slate-400 font-medium block">Starting Rate</span>
+                  <span className="font-bold text-[#3b338c] text-sm">€{viewingPark.startingPrice} <span className="text-[10px] font-normal text-slate-400">/nt</span></span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 font-medium block">Lodges</span>
+                  <span className="font-bold text-slate-900 text-sm">{viewingPark.totalProperties || 10} Units</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 font-medium block">Capacity</span>
+                  <span className="font-bold text-slate-900 text-sm">{viewingPark.totalCapacity || "150"}</span>
+                </div>
+              </div>
+
+              <div className="space-y-1 text-slate-500 bg-slate-50/60 p-3 rounded-xl border border-slate-100 text-[11px]">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Check-in / Check-out:</span>
+                  <span className="font-semibold text-slate-700">{viewingPark.checkInTime || "15:00"} - {viewingPark.checkOutTime || "11:00"}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Reception Desk:</span>
+                  <span className="font-semibold text-slate-700">{viewingPark.receptionHours || "24 Hours"}</span>
+                </div>
+              </div>
+
+              <p className="text-slate-600 leading-relaxed font-normal">{viewingPark.shortDescription || "A luxury holiday park surrounded by pristine nature and peaceful woodlands."}</p>
             </div>
 
-            <div className="pt-2 flex justify-end">
+            <div className="pt-2 flex items-center justify-between border-t border-slate-100">
+              <button
+                onClick={() => {
+                  setViewingPark(null);
+                  router.push(`/dashboard/holiday-parks/${viewingPark._id}/properties`);
+                }}
+                className="px-4 py-2 bg-[#3b338c] hover:bg-[#2d2670] text-white font-semibold rounded-xl text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Home size={14} />
+                <span>View Lodges ({viewingPark.totalProperties || 0})</span>
+              </button>
+
               <button
                 onClick={() => setViewingPark(null)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg text-xs transition-colors"
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition-colors cursor-pointer"
               >
                 Close
               </button>
